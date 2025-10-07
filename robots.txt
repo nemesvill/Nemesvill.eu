@@ -1,4 +1,7 @@
-User-Agent: *
+# As a condition of accessing this website, you agree to abide by the following
+# content signals.
+
+User-agent: *
 Content-signal: search=yes,ai-train=no
 Allow: /
 
