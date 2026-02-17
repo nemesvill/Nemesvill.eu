@@ -38,3 +38,16 @@ form.form .full { grid-column:1/-1; }
 .textarea { resize:vertical; min-height:120px; }
 label { font-size:13px; color:#9cb3c8; display:block; margin-bottom:6px; }
 @media (max-width:720px){ form.form{grid-template-columns:1fr;} }
+/* HERO stabilitás */
+.hero {
+    padding-bottom: 40px;
+}
+
+.hero-card .info-box {
+    margin-top: 14px;
+    max-width: 420px;
+}
+
+.section {
+    padding-top: 60px;
+}
