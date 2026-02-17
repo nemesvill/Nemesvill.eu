@@ -237,3 +237,45 @@ resize:vertical;
 @media (max-width:720px){
 form.form{grid-template-columns:1fr}
 }
+/* ===== Mobil menü kezelés ===== */
+
+/* Menü gomb alapból ne látszódjon (asztali nézet) */
+#nav-toggle{
+    display:none;
+}
+
+/* Mobil nézet */
+@media (max-width:840px){
+
+    /* Menü gomb jelenjen meg */
+    #nav-toggle{
+        display:inline-flex;
+        gap:8px;
+        align-items:center;
+        background:#143042;
+        border:1px solid #1e465d;
+        color:#c7e8f3;
+        padding:8px 12px;
+        border-radius:10px;
+        cursor:pointer;
+    }
+
+    /* Menü rejtve mobilon alapból */
+    #nav-menu{
+        display:none;
+        flex-direction:column;
+        gap:10px;
+        position:absolute;
+        right:20px;
+        top:56px;
+        background:#0f1620;
+        border:1px solid var(--line);
+        padding:12px 14px;
+        border-radius:12px;
+    }
+
+    /* Ha JS megnyitja */
+    #nav-menu.open{
+        display:flex;
+    }
+}
