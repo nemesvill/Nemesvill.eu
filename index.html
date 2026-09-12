@@ -14,7 +14,24 @@
 <link rel="icon" href="assets/logo.png">
 <link rel="stylesheet" href="styles.css">
 
-<!-- Open Graph -->
+  <!-- OpenAI Ads Pixel -->
+<script>
+!function(w,d,s,u){
+  if(w.oaiq)return;
+  var q=function(){q.q.push(arguments)};
+  q.q=[];
+  w.oaiq=q;
+  var j=d.createElement(s);
+  j.async=1;
+  j.src=u;
+  var f=d.getElementsByTagName(s)[0];
+  f.parentNode.insertBefore(j,f)
+}(window,document,"script","https://bzrcdn.openai.com/sdk/oaiq.min.js");
+
+oaiq("init",{pixelId:"1j4pppdUxbfvLx8CPru2mx"});
+</script>
+
+  <!-- Open Graph -->
 <meta property="og:title" content="Villanyszerelő Dunaújváros – Klíma és EV töltő telepítés">
 <meta property="og:description" content="Gyors, megbízható villanyszerelés, klímaszerelés és EV töltő telepítés Dunaújvárosban.">
 <meta property="og:type" content="website">
