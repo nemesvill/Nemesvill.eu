@@ -3,14 +3,14 @@
 
   const API = 'https://api.nemesvill.eu';
   const labels = {
-    villanyszereles: 'ReferenciĂˇk â€“ villanyszerelĂ©s',
-    klimaszereles: 'ReferenciĂˇk â€“ klĂ­maszerelĂ©s',
-    'ev-toltok': 'ReferenciĂˇk â€“ EV-tĂ¶ltĹ‘k'
+    villanyszereles: 'Referenciák – villanyszerelés',
+    klimaszereles: 'Referenciák – klímaszerelés',
+    'ev-toltok': 'Referenciák – EV-töltők'
   };
   const genericCaptions = {
-    villanyszereles: 'VillanyszerelĂ©si referencia',
-    klimaszereles: 'KlĂ­maszerelĂ©si referencia',
-    'ev-toltok': 'EV-tĂ¶ltĹ‘ telepĂ­tĂ©si referencia'
+    villanyszereles: 'Villanyszerelési referencia',
+    klimaszereles: 'Klímaszerelési referencia',
+    'ev-toltok': 'EV-töltő telepítési referencia'
   };
 
   function cleanCaption(name, category) {
@@ -32,13 +32,13 @@
     overlay.hidden = true;
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
-    overlay.setAttribute('aria-label', 'Referencia kĂ©p nagy mĂ©retben');
+    overlay.setAttribute('aria-label', 'Referencia kép nagy méretben');
 
     const close = document.createElement('button');
     close.className = 'nv-gallery-lightbox-close';
     close.type = 'button';
-    close.setAttribute('aria-label', 'BezĂˇrĂˇs');
-    close.textContent = 'Ă—';
+    close.setAttribute('aria-label', 'Bezárás');
+    close.textContent = '×';
 
     const inner = document.createElement('div');
     inner.className = 'nv-gallery-lightbox-inner';
@@ -91,7 +91,7 @@
       wrap.className = 'container';
 
       const heading = document.createElement('h2');
-      heading.textContent = labels[category] || 'ReferenciĂˇk';
+      heading.textContent = labels[category] || 'Referenciák';
 
       const grid = document.createElement('div');
       grid.className = 'nv-gallery-grid';
@@ -105,7 +105,7 @@
 
         const link = document.createElement('a');
         link.href = item.url;
-        link.setAttribute('aria-label', captionText + ' â€“ nagyĂ­tĂˇs');
+        link.setAttribute('aria-label', captionText + ' – nagyítás');
 
         const img = document.createElement('img');
         img.src = item.url;
@@ -131,7 +131,7 @@
       section.append(wrap);
       el.replaceWith(section);
     } catch (error) {
-      console.warn('A Nemesvill galĂ©ria nem tĂ¶lthetĹ‘ be.', error);
+      console.warn('A Nemesvill galéria nem tölthető be.', error);
     }
   }
 })();
