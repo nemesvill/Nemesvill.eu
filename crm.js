@@ -6,12 +6,12 @@
   let customers = [];
   let leads = [];
 
-  const loginPanel = $('loginPanel');
-  const dashboard = $('dashboard');
+  const loginPanel = $('loginView');
+  const dashboard = $('dashboardView');
   const loginForm = $('loginForm');
   const loginMessage = $('loginMessage');
-  const loginStatus = $('loginStatus');
-
+  const loginStatus = $('authStatus');
+  
   const customerFormPanel = $('customerFormPanel');
   const customerForm = $('customerForm');
   const customerList = $('customerList');
@@ -135,7 +135,7 @@
 
   // ADATBÁZIS ÁLLAPOT
   async function checkDatabase() {
-    const statusElement = $('databaseStatus');
+    const statusElement = $('dbStatus');
     if (!statusElement) return;
 
     try {
