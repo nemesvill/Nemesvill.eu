@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
-  <title>Nemesvill CRM – Ügyfélkezelés</title>
+  <title>Nemesvill CRM – Ügyviteli rendszer</title>
   <link rel="stylesheet" href="crm.css">
   <script src="crm.js" defer></script>
 </head>
@@ -20,7 +20,7 @@
     <section id="loginView" class="panel login-panel">
       <div class="eyebrow">BELSŐ HASZNÁLATRA</div>
       <h1>CRM belépés</h1>
-      <p class="muted">Jelentkezz be a Nemesvill ügyfél- és munkakezelő rendszerébe.</p>
+      <p class="muted">Jelentkezz be a Nemesvill ügyviteli rendszerébe.</p>
 
       <form id="loginForm">
         <label for="email">E-mail-cím</label>
@@ -35,16 +35,16 @@
 
         <button type="submit" id="loginButton">Belépés</button>
       </form>
-      <p id="loginMessage" class="message" role="status" aria-live="polite"></p>
+      <p id="loginMessage" class="message" role="status"></p>
     </section>
 
-    <!-- CRM VEZÉRLŐPULT -->
+    <!-- VEZÉRLŐPULT -->
     <section id="dashboardView" class="dashboard" hidden>
       <div class="welcome-row">
         <div>
           <div class="eyebrow">NEMESVILL ÜGYVITEL</div>
           <h1>CRM vezérlőpult</h1>
-          <p class="muted">Ügyfelek és munkák kezelése.</p>
+          <p class="muted">Ügyfelek, érdeklődők és munkák kezelése.</p>
         </div>
         <button id="logoutButton" class="secondary" type="button">
           Kijelentkezés
@@ -66,23 +66,19 @@
         </article>
       </div>
 
-      <!-- ÜGYFÉLKEZELÉS -->
+      <!-- ÜGYFELEK -->
       <section class="panel coming-panel">
         <div class="eyebrow">ÜGYFÉLKEZELÉS</div>
         <h2>Ügyfelek</h2>
         <p class="muted">
-          Itt tudod majd rögzíteni és kezelni a Nemesvill ügyfeleit.
+          A Nemesvill ügyfeleinek nyilvántartása.
         </p>
 
         <div class="customer-toolbar">
-          <input
-            type="search"
-            id="customerSearch"
+          <input type="search" id="customerSearch"
             placeholder="Keresés név, telefon vagy e-mail alapján…"
             aria-label="Ügyfelek keresése">
-          <button type="button" id="newCustomerButton">
-            + Új ügyfél
-          </button>
+          <button type="button" id="newCustomerButton">+ Új ügyfél</button>
         </div>
 
         <div id="customerFormPanel" hidden>
@@ -102,28 +98,24 @@
               maxlength="200" placeholder="Ügyfél neve">
 
             <label for="companyName">Cégnév</label>
-            <input id="companyName" name="company_name"
-              maxlength="200" placeholder="Cégnév">
+            <input id="companyName" name="company_name" maxlength="200">
 
             <label for="taxNumber">Adószám</label>
-            <input id="taxNumber" name="tax_number"
-              maxlength="50" placeholder="Adószám">
+            <input id="taxNumber" name="tax_number" maxlength="50">
 
             <label for="customerEmail">E-mail-cím</label>
-            <input id="customerEmail" name="email"
-              type="email" maxlength="254" placeholder="pelda@email.hu">
+            <input id="customerEmail" name="email" type="email"
+              maxlength="254" placeholder="pelda@email.hu">
 
             <label for="customerPhone">Telefonszám</label>
-            <input id="customerPhone" name="phone"
-              type="tel" maxlength="50" placeholder="+36">
+            <input id="customerPhone" name="phone" type="tel"
+              maxlength="50" placeholder="+36">
 
             <label for="postalCode">Irányítószám</label>
-            <input id="postalCode" name="postal_code"
-              maxlength="10">
+            <input id="postalCode" name="postal_code" maxlength="10">
 
             <label for="customerCity">Település</label>
-            <input id="customerCity" name="city"
-              maxlength="100">
+            <input id="customerCity" name="city" maxlength="100">
 
             <label for="streetAddress">Cím</label>
             <input id="streetAddress" name="street_address"
@@ -131,29 +123,132 @@
 
             <label for="customerNotes">Megjegyzés</label>
             <textarea id="customerNotes" name="notes"
-              rows="4" maxlength="5000"
-              placeholder="Egyéb fontos információ…"></textarea>
+              rows="4" maxlength="5000"></textarea>
 
             <div class="customer-actions">
               <button type="submit" id="saveCustomerButton">
                 Ügyfél mentése
               </button>
               <button type="button" id="cancelCustomerButton"
-                class="secondary">
-                Mégse
-              </button>
+                class="secondary">Mégse</button>
             </div>
 
-            <p id="customerFormMessage" class="message"
-              role="status" aria-live="polite"></p>
+            <p id="customerFormMessage" class="message" role="status"></p>
           </form>
         </div>
 
-        <div id="customerListMessage" class="message"
-          role="status" aria-live="polite"></div>
-
+        <div id="customerListMessage" class="message" role="status"></div>
         <div id="customerList">
-          <p class="muted">Az ügyféllista betöltése a következő fejlesztési lépésben készül el.</p>
+          <p class="muted">Ügyfelek betöltése…</p>
+        </div>
+      </section>
+
+      <!-- ÉRDEKLŐDŐK -->
+      <section class="panel coming-panel">
+        <div class="eyebrow">ÉRTÉKESÍTÉS ÉS MEGKERESÉSEK</div>
+        <h2>Érdeklődők</h2>
+        <p class="muted">
+          Telefonon, Facebookon, e-mailben és a weboldalon érkező megkeresések.
+        </p>
+
+        <div class="customer-toolbar">
+          <input type="search" id="leadSearch"
+            placeholder="Keresés az érdeklődők között…"
+            aria-label="Érdeklődők keresése">
+          <button type="button" id="newLeadButton">+ Új érdeklődő</button>
+        </div>
+
+        <div id="leadFormPanel" hidden>
+          <h3 id="leadFormTitle">Új érdeklődő rögzítése</h3>
+
+          <form id="leadForm">
+            <input type="hidden" id="leadId">
+
+            <label for="leadCustomerMode">Kapcsolat típusa</label>
+            <select id="leadCustomerMode">
+              <option value="new">Új érdeklődő</option>
+              <option value="existing">Meglévő ügyfél</option>
+            </select>
+
+            <div id="newLeadContactFields">
+              <label for="leadCustomerName">Érdeklődő neve *</label>
+              <input id="leadCustomerName" maxlength="200"
+                placeholder="Név">
+
+              <label for="leadCustomerPhone">Telefonszám</label>
+              <input id="leadCustomerPhone" type="tel"
+                maxlength="50" placeholder="+36">
+            </div>
+
+            <div id="existingLeadContactFields" hidden>
+              <label for="leadCustomerSelect">Meglévő ügyfél</label>
+              <select id="leadCustomerSelect">
+                <option value="">Ügyfél kiválasztása</option>
+              </select>
+            </div>
+
+            <label for="leadService">Érdeklődés tárgya *</label>
+            <select id="leadService" required>
+              <option value="villanyszereles">Villanyszerelés</option>
+              <option value="klimaszereles">Klímaszerelés</option>
+              <option value="ev_tolto">EV-töltő telepítés</option>
+              <option value="egyeb">Egyéb</option>
+            </select>
+
+            <label for="leadSource">Megkeresés forrása</label>
+            <select id="leadSource">
+              <option value="phone">Telefon</option>
+              <option value="website">Weboldal</option>
+              <option value="facebook">Facebook</option>
+              <option value="email">E-mail</option>
+              <option value="referral">Ajánlás</option>
+              <option value="manual">Egyéb / személyes</option>
+            </select>
+
+            <label for="leadSubject">Megkeresés rövid tárgya *</label>
+            <input id="leadSubject" required maxlength="200"
+              placeholder="Pl. családi ház teljes villanyszerelése">
+
+            <label for="leadDescription">Részletes leírás</label>
+            <textarea id="leadDescription" rows="4" maxlength="5000"
+              placeholder="Mit szeretne az érdeklődő?"></textarea>
+
+            <label for="leadLocation">Munkavégzés címe</label>
+            <input id="leadLocation" maxlength="300"
+              placeholder="Település, utca, házszám">
+
+            <label for="leadPreferredDate">Tervezett időpont</label>
+            <input id="leadPreferredDate" type="date">
+
+            <label for="leadStatus">Érdeklődés státusza</label>
+            <select id="leadStatus">
+              <option value="new">Új</option>
+              <option value="contacted">Kapcsolatfelvétel megtörtént</option>
+              <option value="survey">Helyszíni felmérés szükséges</option>
+              <option value="quoted">Árajánlat elküldve</option>
+              <option value="won">Megrendelés elfogadva</option>
+              <option value="lost">Nem lett megrendelés</option>
+              <option value="archived">Archiválva</option>
+            </select>
+
+            <label for="leadFollowUp">Visszahívás időpontja</label>
+            <input id="leadFollowUp" type="datetime-local">
+
+            <div class="customer-actions">
+              <button type="submit" id="saveLeadButton">
+                Érdeklődő mentése
+              </button>
+              <button type="button" id="cancelLeadButton"
+                class="secondary">Mégse</button>
+            </div>
+
+            <p id="leadFormMessage" class="message" role="status"></p>
+          </form>
+        </div>
+
+        <div id="leadListMessage" class="message" role="status"></div>
+        <div id="leadList">
+          <p class="muted">Az érdeklődők betöltése folyamatban…</p>
         </div>
       </section>
 
