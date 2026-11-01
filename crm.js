@@ -1,6 +1,6 @@
 (() => {
   // A CRM API új Workerének egyedi domainje.
- const API = 'https://crm-api.nemesvillany.workers.dev';
+ const API = 'https://crm-api.nemesvillany.eu';
   const loginView = document.getElementById('loginView');
   const dashboardView = document.getElementById('dashboardView');
   const loginForm = document.getElementById('loginForm');
