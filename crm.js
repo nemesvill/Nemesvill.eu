@@ -1,321 +1,549 @@
-
 (() => {
   const API = 'https://crm-api.nemesvill.eu';
 
-  const loginView = document.getElementById('loginView');
-  const dashboardView = document.getElementById('dashboardView');
-  const loginForm = document.getElementById('loginForm');
-  const loginButton = document.getElementById('loginButton');
-  const loginMessage = document.getElementById('loginMessage');
-  const dashboardMessage = document.getElementById('dashboardMessage');
-
-  const customerFormPanel = document.getElementById('customerFormPanel');
-  const customerForm = document.getElementById('customerForm');
-  const customerList = document.getElementById('customerList');
-  const customerSearch = document.getElementById('customerSearch');
-  const customerListMessage = document.getElementById('customerListMessage');
-  const customerFormMessage = document.getElementById('customerFormMessage');
+  const $ = (id) => document.getElementById(id);
 
   let customers = [];
+  let leads = [];
+
+  const loginPanel = $('loginPanel');
+  const dashboard = $('dashboard');
+  const loginForm = $('loginForm');
+  const loginMessage = $('loginMessage');
+  const loginStatus = $('loginStatus');
+
+  const customerFormPanel = $('customerFormPanel');
+  const customerForm = $('customerForm');
+  const customerList = $('customerList');
+  const customerSearch = $('customerSearch');
+  const customerListMessage = $('customerListMessage');
+  const customerFormMessage = $('customerFormMessage');
+
+  const leadSearch = $('leadSearch');
+  const newLeadButton = $('newLeadButton');
+  const leadFormPanel = $('leadFormPanel');
+  const leadFormTitle = $('leadFormTitle');
+  const leadForm = $('leadForm');
+  const leadId = $('leadId');
+  const leadCustomerMode = $('leadCustomerMode');
+  const newLeadContactFields = $('newLeadContactFields');
+  const existingLeadContactFields = $('existingLeadContactFields');
+  const leadCustomerName = $('leadCustomerName');
+  const leadCustomerPhone = $('leadCustomerPhone');
+  const leadCustomerSelect = $('leadCustomerSelect');
+  const leadService = $('leadService');
+  const leadSource = $('leadSource');
+  const leadSubject = $('leadSubject');
+  const leadDescription = $('leadDescription');
+  const leadLocation = $('leadLocation');
+  const leadPreferredDate = $('leadPreferredDate');
+  const leadStatus = $('leadStatus');
+  const leadFollowUp = $('leadFollowUp');
+  const leadFormMessage = $('leadFormMessage');
+  const leadListMessage = $('leadListMessage');
+  const leadList = $('leadList');
 
   async function api(path, options = {}) {
-    const response = await fetch(API + path, {
+    const response = await fetch(`${API}${path}`, {
       ...options,
       credentials: 'include',
       headers: {
-        ...(options.headers || {}),
-        ...(options.body ? { 'Content-Type': 'application/json' } : {})
+        'Content-Type': 'application/json',
+        ...(options.headers || {})
       }
     });
 
-    let data = {};
-    try {
-      data = await response.json();
-    } catch (_) {}
+    const data = await response.json().catch(() => ({}));
 
-    return { response, data };
+    if (!response.ok) {
+      throw new Error(data.error || data.message || `HTTP hiba: ${response.status}`);
+    }
+
+    return data;
+  }
+
+  function showMessage(element, message, type = 'info') {
+    if (!element) return;
+    element.textContent = message;
+    element.dataset.type = type;
+  }
+
+  function clearMessage(element) {
+    if (!element) return;
+    element.textContent = '';
+    element.dataset.type = '';
   }
 
   function showDashboard() {
-    loginView.hidden = true;
-    dashboardView.hidden = false;
-    document.getElementById('authStatus').textContent = 'Bejelentkezve';
-    checkDatabase();
+    if (loginPanel) loginPanel.hidden = true;
+    if (dashboard) dashboard.hidden = false;
+    if (loginStatus) loginStatus.textContent = 'Bejelentkezve';
     loadCustomers();
+    loadLeads();
+  }
+
+  function showLogin() {
+    if (loginPanel) loginPanel.hidden = false;
+    if (dashboard) dashboard.hidden = true;
+    if (loginStatus) loginStatus.textContent = 'Nincs bejelentkezve';
   }
 
   async function checkSession() {
     try {
-      const { response, data } = await api('/api/admin/check');
-      if (response.ok && data.authenticated) {
-        showDashboard();
-      }
-    } catch (_) {
-      loginMessage.textContent = 'A CRM szerver jelenleg nem érhető el.';
+      await api('/api/session');
+      showDashboard();
+    } catch {
+      showLogin();
     }
   }
 
-  async function checkDatabase() {
-    const status = document.getElementById('dbStatus');
-    const detail = document.getElementById('dbDetail');
+  if (loginForm) {
+    loginForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      clearMessage(loginMessage);
 
-    status.textContent = 'Ellenőrzés…';
+      const formData = new FormData(loginForm);
+
+      try {
+        await api('/api/login', {
+          method: 'POST',
+          body: JSON.stringify({
+            email: formData.get('email'),
+            password: formData.get('password')
+          })
+        });
+
+        loginForm.reset();
+        showDashboard();
+      } catch (error) {
+        showMessage(loginMessage, error.message, 'error');
+      }
+    });
+  }
+
+  const logoutButton = $('logoutButton');
+
+  if (logoutButton) {
+    logoutButton.addEventListener('click', async () => {
+      try {
+        await api('/api/logout', { method: 'POST' });
+      } finally {
+        showLogin();
+      }
+    });
+  }
+
+  // ADATBÁZIS ÁLLAPOT
+  async function checkDatabase() {
+    const statusElement = $('databaseStatus');
+    if (!statusElement) return;
 
     try {
-      const { response, data } = await api('/api/db-check');
-
-      if (response.ok && data.success && data.test) {
-        status.textContent = 'Kapcsolódva';
-        detail.textContent = 'A D1 adatbázis válaszol.';
-      } else {
-        status.textContent = 'Nem ellenőrizhető';
-        detail.textContent = data.error || 'Adatbázis-kapcsolati hiba.';
-      }
-    } catch (_) {
-      status.textContent = 'Nem elérhető';
-      detail.textContent = 'Nem sikerült elérni a CRM API-t.';
+      const result = await api('/api/db-check');
+      statusElement.textContent = result.message || 'Adatbázis kapcsolat rendben';
+    } catch {
+      statusElement.textContent = 'Adatbázis kapcsolat hiba';
     }
   }
 
-  function openCustomerForm(customer = null) {
-    customerForm.reset();
-    customerFormMessage.textContent = '';
-
-    document.getElementById('customerId').value = customer?.id || '';
-    document.getElementById('customerType').value = customer?.customer_type || 'private';
-    document.getElementById('customerName').value = customer?.name || '';
-    document.getElementById('companyName').value = customer?.company_name || '';
-    document.getElementById('taxNumber').value = customer?.tax_number || '';
-    document.getElementById('customerEmail').value = customer?.email || '';
-    document.getElementById('customerPhone').value = customer?.phone || '';
-    document.getElementById('postalCode').value = customer?.postal_code || '';
-    document.getElementById('customerCity').value = customer?.city || '';
-    document.getElementById('streetAddress').value = customer?.street_address || '';
-    document.getElementById('customerNotes').value = customer?.notes || '';
-
-    document.getElementById('customerFormTitle').textContent =
-      customer ? 'Ügyfél adatainak módosítása' : 'Új ügyfél rögzítése';
-
-    document.getElementById('saveCustomerButton').textContent =
-      customer ? 'Módosítás mentése' : 'Ügyfél mentése';
-
-    customerFormPanel.hidden = false;
-    customerFormPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // ÜGYFELEK
+  function customerName(customer) {
+    return customer.company_name || customer.name || 'Névtelen ügyfél';
   }
 
-  function closeCustomerForm() {
-    customerFormPanel.hidden = true;
-    customerForm.reset();
-    customerFormMessage.textContent = '';
-  }
+  function renderCustomers() {
+    if (!customerList) return;
 
-  function addText(parent, tag, value, className = '') {
-    const element = document.createElement(tag);
-    element.textContent = value || '';
-    if (className) element.className = className;
-    parent.appendChild(element);
-    return element;
-  }
+    const query = (customerSearch?.value || '').toLowerCase().trim();
 
-  function renderCustomers(items) {
-    customerList.replaceChildren();
+    const filtered = customers.filter((customer) => {
+      const searchable = [
+        customer.name,
+        customer.company_name,
+        customer.phone,
+        customer.email,
+        customer.city
+      ].join(' ').toLowerCase();
 
-    if (!items.length) {
-      addText(customerList, 'p', 'Még nincs rögzített ügyfél.', 'muted');
+      return searchable.includes(query);
+    });
+
+    customerList.innerHTML = '';
+
+    if (!filtered.length) {
+      customerList.textContent = 'Nincs megjeleníthető ügyfél.';
       return;
     }
 
-    items.forEach(customer => {
-      const card = document.createElement('article');
-      card.className = 'status-card customer-card';
+    filtered.forEach((customer) => {
+      const item = document.createElement('div');
+      item.className = 'list-item';
 
-      addText(card, 'strong', customer.name || 'Névtelen ügyfél');
-      if (customer.company_name) {
-        addText(card, 'p', customer.company_name);
-      }
-      if (customer.phone) addText(card, 'p', 'Telefon: ' + customer.phone);
-      if (customer.email) addText(card, 'p', 'E-mail: ' + customer.email);
+      const details = document.createElement('div');
+      const name = document.createElement('strong');
+      name.textContent = customerName(customer);
 
-      const address = [
-        customer.postal_code,
-        customer.city,
-        customer.street_address
-      ].filter(Boolean).join(' ');
+      const info = document.createElement('p');
+      info.textContent = [
+        customer.phone,
+        customer.email,
+        customer.city
+      ].filter(Boolean).join(' · ');
 
-      if (address) addText(card, 'p', 'Cím: ' + address);
-      if (customer.notes) addText(card, 'p', 'Megjegyzés: ' + customer.notes);
+      details.append(name, info);
 
       const actions = document.createElement('div');
-      actions.className = 'customer-actions';
+      actions.className = 'list-actions';
 
       const editButton = document.createElement('button');
       editButton.type = 'button';
       editButton.textContent = 'Szerkesztés';
-      editButton.addEventListener('click', () => openCustomerForm(customer));
+      editButton.addEventListener('click', () => editCustomer(customer));
 
-      const deleteButton = document.createElement('button');
-      deleteButton.type = 'button';
-      deleteButton.textContent = 'Törlés';
-      deleteButton.className = 'secondary';
-      deleteButton.addEventListener('click', () => deleteCustomer(customer));
-
-      actions.append(editButton, deleteButton);
-      card.appendChild(actions);
-      customerList.appendChild(card);
+      actions.append(editButton);
+      item.append(details, actions);
+      customerList.append(item);
     });
   }
 
   async function loadCustomers() {
-    customerListMessage.textContent = 'Ügyfelek betöltése…';
+    if (!customerList) return;
+
+    showMessage(customerListMessage, 'Ügyfelek betöltése...');
 
     try {
-      const query = customerSearch.value.trim();
-      const { response, data } = await api(
-        '/api/customers?q=' + encodeURIComponent(query)
-      );
-
-      if (!response.ok) {
-        customerListMessage.textContent =
-          data.error || 'Nem sikerült betölteni az ügyfeleket.';
-        return;
-      }
-
-      customers = data.items || [];
-      renderCustomers(customers);
-      customerListMessage.textContent =
-        customers.length + ' ügyfél található.';
-    } catch (_) {
-      customerListMessage.textContent =
-        'Nem sikerült kapcsolódni a CRM szerverhez.';
+      const result = await api('/api/customers');
+      customers = Array.isArray(result) ? result : (result.customers || []);
+      renderCustomers();
+      populateLeadCustomers();
+      clearMessage(customerListMessage);
+    } catch (error) {
+      showMessage(customerListMessage, error.message, 'error');
     }
   }
 
-  customerForm.addEventListener('submit', async event => {
-    event.preventDefault();
+  function editCustomer(customer) {
+    if (!customerForm) return;
 
-    const id = document.getElementById('customerId').value;
+    customerForm.reset();
 
-    const customer = {
-      customer_type: document.getElementById('customerType').value,
-      name: document.getElementById('customerName').value.trim(),
-      company_name: document.getElementById('companyName').value.trim(),
-      tax_number: document.getElementById('taxNumber').value.trim(),
-      email: document.getElementById('customerEmail').value.trim(),
-      phone: document.getElementById('customerPhone').value.trim(),
-      postal_code: document.getElementById('postalCode').value.trim(),
-      city: document.getElementById('customerCity').value.trim(),
-      street_address: document.getElementById('streetAddress').value.trim(),
-      notes: document.getElementById('customerNotes').value.trim()
+    const set = (name, value) => {
+      const field = customerForm.elements.namedItem(name);
+      if (field) field.value = value || '';
     };
 
-    const saveButton = document.getElementById('saveCustomerButton');
-    saveButton.disabled = true;
-    customerFormMessage.textContent = 'Mentés folyamatban…';
+    set('id', customer.id);
+    set('customer_type', customer.customer_type || 'person');
+    set('name', customer.name);
+    set('company_name', customer.company_name);
+    set('tax_number', customer.tax_number);
+    set('email', customer.email);
+    set('phone', customer.phone);
+    set('postal_code', customer.postal_code);
+    set('city', customer.city);
+    set('street_address', customer.street_address);
+    set('notes', customer.notes);
 
-    try {
-      const { response, data } = await api(
-        id ? '/api/customers/' + id : '/api/customers',
-        {
-          method: id ? 'PUT' : 'POST',
-          body: JSON.stringify(customer)
+    if (customerFormPanel) customerFormPanel.hidden = false;
+    showMessage(customerFormMessage, 'Ügyfél szerkesztése');
+  }
+
+  const newCustomerButton = $('newCustomerButton');
+
+  if (newCustomerButton) {
+    newCustomerButton.addEventListener('click', () => {
+      customerForm?.reset();
+      const idField = customerForm?.elements.namedItem('id');
+      if (idField) idField.value = '';
+      if (customerFormPanel) customerFormPanel.hidden = false;
+      clearMessage(customerFormMessage);
+    });
+  }
+
+  const cancelCustomerButton = $('cancelCustomerButton');
+
+  if (cancelCustomerButton) {
+    cancelCustomerButton.addEventListener('click', () => {
+      customerForm?.reset();
+      if (customerFormPanel) customerFormPanel.hidden = true;
+      clearMessage(customerFormMessage);
+    });
+  }
+
+  if (customerSearch) {
+    customerSearch.addEventListener('input', renderCustomers);
+  }
+
+  if (customerForm) {
+    customerForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      clearMessage(customerFormMessage);
+
+      const formData = new FormData(customerForm);
+      const data = Object.fromEntries(formData.entries());
+      const id = data.id;
+      delete data.id;
+
+      try {
+        if (id) {
+          await api(`/api/customers/${encodeURIComponent(id)}`, {
+            method: 'PUT',
+            body: JSON.stringify(data)
+          });
+        } else {
+          await api('/api/customers', {
+            method: 'POST',
+            body: JSON.stringify(data)
+          });
         }
-      );
 
-      if (!response.ok || !data.success) {
-        customerFormMessage.textContent =
-          data.error || 'A mentés nem sikerült.';
-        return;
+        customerForm.reset();
+        if (customerFormPanel) customerFormPanel.hidden = true;
+        showMessage(customerFormMessage, 'Ügyfél sikeresen mentve.', 'success');
+        await loadCustomers();
+      } catch (error) {
+        showMessage(customerFormMessage, error.message, 'error');
       }
+    });
+  }
 
-      customerFormMessage.textContent = 'Sikeres mentés!';
-      closeCustomerForm();
-      await loadCustomers();
-    } catch (_) {
-      customerFormMessage.textContent =
-        'Nem sikerült kapcsolódni a CRM szerverhez.';
-    } finally {
-      saveButton.disabled = false;
+  // ÉRDEKLŐDŐK
+  function populateLeadCustomers() {
+    if (!leadCustomerSelect) return;
+
+    const previousValue = leadCustomerSelect.value;
+    leadCustomerSelect.innerHTML = '';
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Válassz ügyfelet...';
+    leadCustomerSelect.append(placeholder);
+
+    customers.forEach((customer) => {
+      const option = document.createElement('option');
+      option.value = customer.id;
+      option.textContent = `${customerName(customer)}${customer.phone ? ' – ' + customer.phone : ''}`;
+      leadCustomerSelect.append(option);
+    });
+
+    if (customers.some((customer) => customer.id === previousValue)) {
+      leadCustomerSelect.value = previousValue;
     }
-  });
+  }
 
-  async function deleteCustomer(customer) {
-    if (!confirm('Biztosan törlöd ezt az ügyfelet: ' + customer.name + '?')) {
+  function toggleLeadCustomerMode() {
+    const isNew = !leadCustomerMode || leadCustomerMode.value === 'new';
+
+    if (newLeadContactFields) newLeadContactFields.hidden = !isNew;
+    if (existingLeadContactFields) existingLeadContactFields.hidden = isNew;
+  }
+
+  if (leadCustomerMode) {
+    leadCustomerMode.addEventListener('change', toggleLeadCustomerMode);
+    toggleLeadCustomerMode();
+  }
+
+  function resetLeadForm() {
+    leadForm?.reset();
+    if (leadId) leadId.value = '';
+    if (leadFormTitle) leadFormTitle.textContent = 'Új érdeklődő';
+    if (leadCustomerMode) leadCustomerMode.value = 'new';
+    toggleLeadCustomerMode();
+    clearMessage(leadFormMessage);
+  }
+
+  function openLeadForm() {
+    resetLeadForm();
+    populateLeadCustomers();
+    if (leadFormPanel) leadFormPanel.hidden = false;
+  }
+
+  if (newLeadButton) {
+    newLeadButton.addEventListener('click', openLeadForm);
+  }
+
+  const cancelLeadButton = $('cancelLeadButton');
+
+  if (cancelLeadButton) {
+    cancelLeadButton.addEventListener('click', () => {
+      if (leadFormPanel) leadFormPanel.hidden = true;
+      resetLeadForm();
+    });
+  }
+
+  function serviceLabel(value) {
+    const labels = {
+      villanyszereles: 'Villanyszerelés',
+      klimaszereles: 'Klímaszerelés',
+      ev_tolto: 'EV-töltő',
+      egyeb: 'Egyéb'
+    };
+    return labels[value] || value || 'Nincs megadva';
+  }
+
+  function statusLabel(value) {
+    const labels = {
+      new: 'Új',
+      contacted: 'Kapcsolatfelvétel',
+      survey: 'Felmérés',
+      quoted: 'Ajánlat elküldve',
+      won: 'Megrendelés',
+      lost: 'Elveszett',
+      archived: 'Archivált'
+    };
+    return labels[value] || value || 'Új';
+  }
+
+  function renderLeads() {
+    if (!leadList) return;
+
+    const query = (leadSearch?.value || '').toLowerCase().trim();
+
+    const filtered = leads.filter((lead) => {
+      const searchable = [
+        lead.subject,
+        lead.customer_name,
+        lead.description,
+        lead.location_text,
+        lead.service_type,
+        lead.status
+      ].join(' ').toLowerCase();
+
+      return searchable.includes(query);
+    });
+
+    leadList.innerHTML = '';
+
+    if (!filtered.length) {
+      leadList.textContent = 'Még nincs rögzített érdeklődő.';
       return;
     }
 
+    filtered.forEach((lead) => {
+      const item = document.createElement('div');
+      item.className = 'list-item';
+
+      const details = document.createElement('div');
+
+      const title = document.createElement('strong');
+      title.textContent = lead.subject || 'Érdeklődés';
+
+      const contact = document.createElement('p');
+      contact.textContent = lead.customer_name || 'Ismeretlen ügyfél';
+
+      const meta = document.createElement('p');
+      meta.textContent = [
+        serviceLabel(lead.service_type),
+        statusLabel(lead.status),
+        lead.location_text
+      ].filter(Boolean).join(' · ');
+
+      const description = document.createElement('p');
+      description.textContent = lead.description || '';
+
+      details.append(title, contact, meta);
+      if (lead.description) details.append(description);
+
+      item.append(details);
+      leadList.append(item);
+    });
+  }
+
+  async function loadLeads() {
+    if (!leadList) return;
+
+    showMessage(leadListMessage, 'Érdeklődők betöltése...');
+
     try {
-      const { response, data } = await api(
-        '/api/customers/' + customer.id,
-        { method: 'DELETE' }
-      );
-
-      if (!response.ok || !data.success) {
-        customerListMessage.textContent =
-          data.error || 'A törlés nem sikerült.';
-        return;
-      }
-
-      customerListMessage.textContent = 'Az ügyfél törölve.';
-      await loadCustomers();
-    } catch (_) {
-      customerListMessage.textContent =
-        'Nem sikerült kapcsolódni a CRM szerverhez.';
+      const result = await api('/api/leads');
+      leads = Array.isArray(result) ? result : (result.leads || []);
+      renderLeads();
+      clearMessage(leadListMessage);
+    } catch (error) {
+      showMessage(leadListMessage, error.message, 'error');
     }
   }
 
-  document.getElementById('newCustomerButton')
-    .addEventListener('click', () => openCustomerForm());
+  if (leadSearch) {
+    leadSearch.addEventListener('input', renderLeads);
+  }
 
-  document.getElementById('cancelCustomerButton')
-    .addEventListener('click', closeCustomerForm);
+  if (leadForm) {
+    leadForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      clearMessage(leadFormMessage);
 
-  customerSearch.addEventListener('input', loadCustomers);
+      const isNewCustomer = !leadCustomerMode || leadCustomerMode.value === 'new';
+      let customerId = '';
 
-  loginForm.addEventListener('submit', async event => {
-    event.preventDefault();
+      try {
+        if (isNewCustomer) {
+          const name = leadCustomerName?.value.trim();
+          const phone = leadCustomerPhone?.value.trim();
 
-    loginMessage.textContent = '';
-    loginButton.disabled = true;
-    loginButton.textContent = 'Beléptetés…';
+          if (!name) {
+            throw new Error('Add meg az érdeklődő nevét.');
+          }
 
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
+          showMessage(leadFormMessage, 'Kapcsolattartó mentése...');
 
-    try {
-      const { response, data } = await api('/api/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password })
-      });
+          const customerResult = await api('/api/customers', {
+            method: 'POST',
+            body: JSON.stringify({
+              customer_type: 'person',
+              name,
+              phone
+            })
+          });
 
-      if (!response.ok || !data.success) {
-        loginMessage.textContent =
-          response.status === 401
-            ? 'Hibás e-mail-cím vagy jelszó.'
-            : (data.error || 'A bejelentkezés nem sikerült.');
-        return;
+          const customer = customerResult.customer || customerResult;
+          customerId = customer.id;
+
+          if (!customerId) {
+            throw new Error('Az ügyfél mentése nem adott vissza azonosítót.');
+          }
+
+          await loadCustomers();
+        } else {
+          customerId = leadCustomerSelect?.value || '';
+
+          if (!customerId) {
+            throw new Error('Válassz ki egy ügyfelet.');
+          }
+        }
+
+        const data = {
+          customer_id: customerId,
+          service_type: leadService?.value || 'egyeb',
+          source: leadSource?.value || 'manual',
+          subject: leadSubject?.value.trim() || 'Új érdeklődés',
+          description: leadDescription?.value.trim() || '',
+          location_text: leadLocation?.value.trim() || '',
+          preferred_date: leadPreferredDate?.value || '',
+          status: leadStatus?.value || 'new',
+          follow_up_at: leadFollowUp?.value || ''
+        };
+
+        showMessage(leadFormMessage, 'Érdeklődő mentése...');
+
+        await api('/api/leads', {
+          method: 'POST',
+          body: JSON.stringify(data)
+        });
+
+        showMessage(leadFormMessage, 'Érdeklődő sikeresen rögzítve.', 'success');
+        leadForm?.reset();
+        if (leadFormPanel) leadFormPanel.hidden = true;
+
+        await loadLeads();
+        await loadCustomers();
+      } catch (error) {
+        showMessage(leadFormMessage, error.message, 'error');
       }
+    });
+  }
 
-      loginForm.reset();
-      showDashboard();
-    } catch (_) {
-      loginMessage.textContent =
-        'Nem sikerült kapcsolódni a CRM szerverhez.';
-    } finally {
-      loginButton.disabled = false;
-      loginButton.textContent = 'Belépés';
-    }
-  });
-
-  document.getElementById('logoutButton').addEventListener('click', async () => {
-    try {
-      await api('/api/logout', { method: 'POST' });
-    } catch (_) {}
-
-    dashboardView.hidden = true;
-    loginView.hidden = false;
-    dashboardMessage.textContent = '';
-    loginMessage.textContent = 'Sikeresen kijelentkeztél.';
-  });
-
+  // INDÍTÁS
   checkSession();
+  checkDatabase();
 })();
