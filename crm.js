@@ -201,6 +201,32 @@
       editButton.addEventListener('click', () => editCustomer(customer));
 
       actions.append(editButton);
+
+// TÖRLÉS GOMB
+const deleteButton = document.createElement('button');
+deleteButton.type = 'button';
+deleteButton.textContent = 'Törlés';
+
+deleteButton.addEventListener('click', async () => {
+  const confirmed = confirm(
+    `Biztosan törlöd ezt az ügyfelet: ${customerName(customer)}?`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    await api(`/api/customers/${encodeURIComponent(customer.id)}`, {
+      method: 'DELETE'
+    });
+
+    await loadCustomers();
+    showMessage(customerListMessage, 'Ügyfél sikeresen törölve.', 'success');
+  } catch (error) {
+    showMessage(customerListMessage, error.message, 'error');
+  }
+});
+
+actions.append(deleteButton);
       item.append(details, actions);
       customerList.append(item);
     });
