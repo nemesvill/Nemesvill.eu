@@ -1,10 +1,11 @@
+
 <!doctype html>
 <html lang="hu">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
-  <title>Nemesvill CRM – Belépés</title>
+  <title>Nemesvill CRM – Ügyfélkezelés</title>
   <link rel="stylesheet" href="crm.css">
   <script src="crm.js" defer></script>
 </head>
@@ -15,32 +16,151 @@
       <span class="brand">NEMESVILL <small>CRM</small></span>
     </header>
 
+    <!-- BEJELENTKEZÉS -->
     <section id="loginView" class="panel login-panel">
       <div class="eyebrow">BELSŐ HASZNÁLATRA</div>
       <h1>CRM belépés</h1>
       <p class="muted">Jelentkezz be a Nemesvill ügyfél- és munkakezelő rendszerébe.</p>
+
       <form id="loginForm">
         <label for="email">E-mail-cím</label>
-        <input id="email" name="email" type="email" autocomplete="username" required maxlength="254" placeholder="admin@nemesvill.eu">
+        <input id="email" name="email" type="email"
+          autocomplete="username" required maxlength="254"
+          placeholder="admin@nemesvill.eu">
+
         <label for="password">Jelszó</label>
-        <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="256" placeholder="Jelszó">
+        <input id="password" name="password" type="password"
+          autocomplete="current-password" required maxlength="256"
+          placeholder="Jelszó">
+
         <button type="submit" id="loginButton">Belépés</button>
       </form>
       <p id="loginMessage" class="message" role="status" aria-live="polite"></p>
     </section>
 
+    <!-- CRM VEZÉRLŐPULT -->
     <section id="dashboardView" class="dashboard" hidden>
       <div class="welcome-row">
-        <div><div class="eyebrow">NEMESVILL ÜGYVITEL</div><h1>CRM vezérlőpult</h1><p class="muted">A belépés sikeres. Innen indul az ügyfél- és munkakezelés.</p></div>
-        <button id="logoutButton" class="secondary" type="button">Kijelentkezés</button>
+        <div>
+          <div class="eyebrow">NEMESVILL ÜGYVITEL</div>
+          <h1>CRM vezérlőpult</h1>
+          <p class="muted">Ügyfelek és munkák kezelése.</p>
+        </div>
+        <button id="logoutButton" class="secondary" type="button">
+          Kijelentkezés
+        </button>
       </div>
+
+      <!-- ÁLLAPOTOK -->
       <div class="status-grid">
-        <article class="status-card"><span class="status-label">Bejelentkezés</span><strong id="authStatus">Ellenőrzés…</strong><small>Védett munkamenet</small></article>
-        <article class="status-card"><span class="status-label">D1 adatbázis</span><strong id="dbStatus">Ellenőrzés…</strong><small id="dbDetail">Kapcsolat tesztelése</small></article>
+        <article class="status-card">
+          <span class="status-label">Bejelentkezés</span>
+          <strong id="authStatus">Ellenőrzés…</strong>
+          <small>Védett munkamenet</small>
+        </article>
+
+        <article class="status-card">
+          <span class="status-label">D1 adatbázis</span>
+          <strong id="dbStatus">Ellenőrzés…</strong>
+          <small id="dbDetail">Kapcsolat tesztelése</small>
+        </article>
       </div>
-      <div class="panel coming-panel"><div class="eyebrow">KÖVETKEZŐ FEJLESZTÉSI LÉPÉS</div><h2>Ügyfélkezelés</h2><p class="muted">A CRM felület alapja elkészült. A következő modulok az ügyfelek, érdeklődők, munkák, ajánlatok, bevételek és kiadások kezelése lesznek.</p></div>
-      <p id="dashboardMessage" class="message" role="status" aria-live="polite"></p>
+
+      <!-- ÜGYFÉLKEZELÉS -->
+      <section class="panel coming-panel">
+        <div class="eyebrow">ÜGYFÉLKEZELÉS</div>
+        <h2>Ügyfelek</h2>
+        <p class="muted">
+          Itt tudod majd rögzíteni és kezelni a Nemesvill ügyfeleit.
+        </p>
+
+        <div class="customer-toolbar">
+          <input
+            type="search"
+            id="customerSearch"
+            placeholder="Keresés név, telefon vagy e-mail alapján…"
+            aria-label="Ügyfelek keresése">
+          <button type="button" id="newCustomerButton">
+            + Új ügyfél
+          </button>
+        </div>
+
+        <div id="customerFormPanel" hidden>
+          <h3 id="customerFormTitle">Új ügyfél rögzítése</h3>
+
+          <form id="customerForm">
+            <input type="hidden" id="customerId">
+
+            <label for="customerType">Ügyfél típusa</label>
+            <select id="customerType" name="customer_type">
+              <option value="private">Magánszemély</option>
+              <option value="company">Cég</option>
+            </select>
+
+            <label for="customerName">Név *</label>
+            <input id="customerName" name="name" required
+              maxlength="200" placeholder="Ügyfél neve">
+
+            <label for="companyName">Cégnév</label>
+            <input id="companyName" name="company_name"
+              maxlength="200" placeholder="Cégnév">
+
+            <label for="taxNumber">Adószám</label>
+            <input id="taxNumber" name="tax_number"
+              maxlength="50" placeholder="Adószám">
+
+            <label for="customerEmail">E-mail-cím</label>
+            <input id="customerEmail" name="email"
+              type="email" maxlength="254" placeholder="pelda@email.hu">
+
+            <label for="customerPhone">Telefonszám</label>
+            <input id="customerPhone" name="phone"
+              type="tel" maxlength="50" placeholder="+36">
+
+            <label for="postalCode">Irányítószám</label>
+            <input id="postalCode" name="postal_code"
+              maxlength="10">
+
+            <label for="customerCity">Település</label>
+            <input id="customerCity" name="city"
+              maxlength="100">
+
+            <label for="streetAddress">Cím</label>
+            <input id="streetAddress" name="street_address"
+              maxlength="250" placeholder="Utca, házszám">
+
+            <label for="customerNotes">Megjegyzés</label>
+            <textarea id="customerNotes" name="notes"
+              rows="4" maxlength="5000"
+              placeholder="Egyéb fontos információ…"></textarea>
+
+            <div class="customer-actions">
+              <button type="submit" id="saveCustomerButton">
+                Ügyfél mentése
+              </button>
+              <button type="button" id="cancelCustomerButton"
+                class="secondary">
+                Mégse
+              </button>
+            </div>
+
+            <p id="customerFormMessage" class="message"
+              role="status" aria-live="polite"></p>
+          </form>
+        </div>
+
+        <div id="customerListMessage" class="message"
+          role="status" aria-live="polite"></div>
+
+        <div id="customerList">
+          <p class="muted">Az ügyféllista betöltése a következő fejlesztési lépésben készül el.</p>
+        </div>
+      </section>
+
+      <p id="dashboardMessage" class="message"
+        role="status" aria-live="polite"></p>
     </section>
+
     <footer>© Nemesvill – belső ügyviteli rendszer</footer>
   </main>
 </body>
