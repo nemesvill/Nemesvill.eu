@@ -81,6 +81,7 @@
     loadCustomers();
     loadLeads();
     loadJobs();
+    checkDatabase();
   }
 
   function showLogin() {
@@ -976,5 +977,4 @@ showMessage(
   
   // INDÍTÁS
   checkSession();
-  checkDatabase();
 })();
