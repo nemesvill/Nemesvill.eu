@@ -478,9 +478,11 @@ editButton.addEventListener('click', () => {
   editLead(lead);
 });
 
-details.append(editButton);
-      
-      item.append(details);
+const actions = document.createElement('div');
+actions.className = 'list-actions';
+actions.append(editButton);
+item.append(details, actions);
+
       leadList.append(item);
     });
   }
