@@ -80,6 +80,7 @@
     if (loginStatus) loginStatus.textContent = 'Bejelentkezve';
     loadCustomers();
     loadLeads();
+    loadJobs();
   }
 
   function showLogin() {
@@ -233,7 +234,7 @@ actions.append(deleteButton);
     });
   }
 
-  async function loadCustomers() {
+ async function loadCustomers() {
     if (!customerList) return;
 
     showMessage(customerListMessage, 'Ügyfelek betöltése...');
@@ -243,6 +244,7 @@ actions.append(deleteButton);
       customers = Array.isArray(result) ? result : (result.customers || []);
       renderCustomers();
       populateLeadCustomers();
+      populateJobCustomers();
       clearMessage(customerListMessage);
     } catch (error) {
       showMessage(customerListMessage, error.message, 'error');
@@ -558,6 +560,7 @@ function editLead(lead) {
       const result = await api('/api/leads');
       leads = Array.isArray(result) ? result : (result.leads || []);
       renderLeads();
+      populateJobLeads();
       clearMessage(leadListMessage);
     } catch (error) {
       showMessage(leadListMessage, error.message, 'error');
@@ -661,6 +664,310 @@ showMessage(
     });
   }
 
+  // MUNKÁK KEZELÉSE
+  function jobStatusLabel(value) {
+    const labels = {
+      planned: 'Tervezett',
+      in_progress: 'Folyamatban',
+      waiting_material: 'Anyagra vár',
+      completed: 'Befejezett',
+      cancelled: 'Meghiúsult'
+    };
+    return labels[value] || value || 'Tervezett';
+  }
+
+  function formatJobDate(value) {
+    if (!value) return '';
+    const date = new Date(String(value).replace(' ', 'T'));
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString('hu-HU', {
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit'
+    });
+  }
+
+  function toDateTimeLocal(value) {
+    return value ? String(value).replace(' ', 'T').slice(0, 16) : '';
+  }
+
+  function populateJobCustomers() {
+    if (!jobCustomer) return;
+    const previousValue = jobCustomer.value;
+    jobCustomer.innerHTML = '';
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Ügyfél kiválasztása';
+    jobCustomer.append(placeholder);
+
+    customers.forEach((customer) => {
+      const option = document.createElement('option');
+      option.value = customer.id;
+      option.textContent = `${customerName(customer)}${customer.phone ? ' – ' + customer.phone : ''}`;
+      jobCustomer.append(option);
+    });
+
+    if (customers.some(customer => customer.id === previousValue)) {
+      jobCustomer.value = previousValue;
+    }
+  }
+
+  function populateJobLeads(selectedValue = null) {
+    if (!jobLead) return;
+    const previousValue = selectedValue ?? jobLead.value;
+    jobLead.innerHTML = '';
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Nincs kapcsolódó érdeklődés';
+    jobLead.append(placeholder);
+
+    leads.forEach((lead) => {
+      const option = document.createElement('option');
+      option.value = lead.id;
+      option.textContent = `${lead.subject || 'Érdeklődés'}${lead.customer_name ? ' – ' + lead.customer_name : ''}`;
+      jobLead.append(option);
+    });
+
+    if (leads.some(lead => lead.id === previousValue)) {
+      jobLead.value = previousValue;
+    }
+  }
+    async function loadJobs() {
+    if (!jobList) return;
+
+    jobList.innerHTML = '<p> munkák betöltése...</p>';
+
+    try {
+      const result = await api('/api/jobs');
+      jobs = result.items || result.jobs || [];
+      renderJobs();
+    } catch (error) {
+      jobList.innerHTML = '';
+      if (jobListMessage) {
+        jobListMessage.textContent = error.message || 'Nem sikerült betölteni a munkákat.';
+      }
+    }
+  }
+
+  function renderJobs() {
+    if (!jobList) return;
+
+    const search = (jobSearch?.value || '').toLowerCase().trim();
+
+    const filtered = jobs.filter((job) => {
+      const customer = job.customer_name || '';
+      const text = [
+        job.job_number,
+        job.title,
+        customer,
+        job.address_text,
+        job.service_type,
+        job.status
+      ].join(' ').toLowerCase();
+
+      return text.includes(search);
+    });
+
+    jobList.innerHTML = '';
+
+    if (!filtered.length) {
+      jobList.innerHTML = '<p>Nincs megjeleníthető munka.</p>';
+      return;
+    }
+
+    filtered.forEach((job) => {
+      const card = document.createElement('article');
+      card.className = 'item-card';
+
+      const heading = document.createElement('h3');
+      heading.textContent = `${job.job_number || ''} – ${job.title || 'Munka'}`;
+
+      const details = document.createElement('p');
+      details.textContent =
+        `${job.customer_name || 'Nincs ügyfél'} · ${jobStatusLabel(job.status)}`;
+
+      const date = document.createElement('p');
+      date.textContent = job.scheduled_start
+        ? `Kezdés: ${formatJobDate(job.scheduled_start)}`
+        : 'Nincs időpont megadva';
+
+      const address = document.createElement('p');
+      address.textContent = job.address_text || '';
+
+      const actions = document.createElement('div');
+      actions.className = 'item-actions';
+
+      const editButton = document.createElement('button');
+      editButton.type = 'button';
+      editButton.textContent = 'Szerkesztés';
+      editButton.addEventListener('click', () => editJob(job.id));
+
+      const deleteButton = document.createElement('button');
+      deleteButton.type = 'button';
+      deleteButton.textContent = 'Törlés';
+      deleteButton.addEventListener('click', () => deleteJob(job.id));
+
+      actions.append(editButton, deleteButton);
+      card.append(heading, details, date, address, actions);
+      jobList.append(card);
+    });
+  }
+    // MUNKÁK FELÜLETÉNEK ELEMEI
+  let jobs = [];
+
+  const jobList = $('#jobList');
+  const jobListMessage = $('#jobListMessage');
+  const jobSearch = $('#jobSearch');
+  const newJobButton = $('#newJobButton');
+  const jobFormPanel = $('#jobFormPanel');
+  const jobFormTitle = $('#jobFormTitle');
+  const jobForm = $('#jobForm');
+  const jobId = $('#jobId');
+  const jobCustomer = $('#jobCustomer');
+  const jobLead = $('#jobLead');
+  const jobService = $('#jobService');
+  const jobTitle = $('#jobTitle');
+  const jobDescription = $('#jobDescription');
+  const jobStart = $('#jobStart');
+  const jobEnd = $('#jobEnd');
+  const jobAddress = $('#jobAddress');
+  const jobLaborMinutes = $('#jobLaborMinutes');
+  const jobStatus = $('#jobStatus');
+  const jobNotes = $('#jobNotes');
+  const jobFormMessage = $('#jobFormMessage');
+  const cancelJobButton = $('#cancelJobButton');
+
+  function resetJobForm() {
+    if (!jobForm) return;
+    jobForm.reset();
+    jobId.value = '';
+    if (jobFormTitle) jobFormTitle.textContent = 'Új munka';
+    if (jobFormMessage) jobFormMessage.textContent = '';
+    if (jobFormPanel) jobFormPanel.hidden = true;
+  }
+
+  function editJob(id) {
+    const job = jobs.find(item => item.id === id);
+    if (!job) return;
+
+    jobId.value = job.id;
+    jobCustomer.value = job.customer_id || '';
+    populateJobLeads(job.lead_id || '');
+    jobService.value = job.service_type || 'villanyszereles';
+    jobTitle.value = job.title || '';
+    jobDescription.value = job.description || '';
+    jobStart.value = toDateTimeLocal(job.scheduled_start);
+    jobEnd.value = toDateTimeLocal(job.scheduled_end);
+    jobAddress.value = job.address_text || '';
+    jobLaborMinutes.value = job.labor_minutes || 0;
+    jobStatus.value = job.status || 'planned';
+    jobNotes.value = job.notes || '';
+
+    if (jobFormTitle) jobFormTitle.textContent = 'Munka szerkesztése';
+    if (jobFormMessage) jobFormMessage.textContent = '';
+    if (jobFormPanel) jobFormPanel.hidden = false;
+    jobFormPanel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  async function deleteJob(id) {
+    const job = jobs.find(item => item.id === id);
+    if (!job) return;
+
+    if (!confirm(`Biztosan törlöd ezt a munkát: ${job.title}?`)) return;
+
+    try {
+      await api(`/api/jobs/${encodeURIComponent(id)}`, {
+        method: 'DELETE'
+      });
+      await loadJobs();
+      if (jobListMessage) jobListMessage.textContent = 'A munka törölve.';
+    } catch (error) {
+      if (jobListMessage) {
+        jobListMessage.textContent = error.message || 'Nem sikerült törölni a munkát.';
+      }
+    }
+  }
+
+    // ÚJ MUNKA ÉS MUNKA MENTÉSE
+  if (newJobButton) {
+    newJobButton.addEventListener('click', () => {
+      resetJobForm();
+      if (jobFormTitle) jobFormTitle.textContent = 'Új munka';
+      if (jobFormPanel) jobFormPanel.hidden = false;
+      populateJobCustomers();
+      populateJobLeads();
+      jobFormPanel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
+  if (cancelJobButton) {
+    cancelJobButton.addEventListener('click', resetJobForm);
+  }
+
+  if (jobSearch) {
+    jobSearch.addEventListener('input', renderJobs);
+  }
+
+  if (jobCustomer) {
+    jobCustomer.addEventListener('change', () => {
+      populateJobLeads();
+    });
+  }
+
+  if (jobForm) {
+    jobForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const data = {
+        customer_id: jobCustomer.value,
+        lead_id: jobLead.value || null,
+        service_type: jobService.value,
+        title: jobTitle.value.trim(),
+        description: jobDescription.value.trim(),
+        scheduled_start: jobStart.value || null,
+        scheduled_end: jobEnd.value || null,
+        address_text: jobAddress.value.trim(),
+        labor_minutes: Number(jobLaborMinutes.value) || 0,
+        status: jobStatus.value,
+        notes: jobNotes.value.trim()
+      };
+
+      if (!data.customer_id || !data.title) {
+        if (jobFormMessage) {
+          jobFormMessage.textContent = 'Az ügyfél és a munka megnevezése kötelező.';
+        }
+        return;
+      }
+
+      const id = jobId.value;
+      const method = id ? 'PUT' : 'POST';
+      const path = id
+        ? `/api/jobs/${encodeURIComponent(id)}`
+        : '/api/jobs';
+
+      try {
+        if (jobFormMessage) jobFormMessage.textContent = 'Mentés...';
+
+        await api(path, {
+          method,
+          body: JSON.stringify(data)
+        });
+
+        resetJobForm();
+        await loadJobs();
+
+        if (jobListMessage) {
+          jobListMessage.textContent = 'A munka sikeresen mentve.';
+        }
+      } catch (error) {
+        if (jobFormMessage) {
+          jobFormMessage.textContent = error.message || 'Nem sikerült menteni a munkát.';
+        }
+      }
+    });
+  }
+  
   // INDÍTÁS
   checkSession();
   checkDatabase();
