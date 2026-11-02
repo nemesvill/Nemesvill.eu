@@ -470,11 +470,60 @@ actions.append(deleteButton);
       details.append(title, contact, meta);
       if (lead.description) details.append(description);
 
+      const editButton = document.createElement('button');
+editButton.type = 'button';
+editButton.textContent = 'Szerkesztés';
+
+editButton.addEventListener('click', () => {
+  editLead(lead);
+});
+
+details.append(editButton);
+      
       item.append(details);
       leadList.append(item);
     });
   }
+function editLead(lead) {
+  if (!leadForm) return;
 
+  resetLeadForm();
+  populateLeadCustomers();
+
+  if (leadId) leadId.value = lead.id;
+
+  if (leadFormTitle) {
+    leadFormTitle.textContent = 'Érdeklődő szerkesztése';
+  }
+
+  if (leadCustomerMode) {
+    leadCustomerMode.value = 'existing';
+  }
+
+  toggleLeadCustomerMode();
+
+  if (leadCustomerSelect) {
+    leadCustomerSelect.value = lead.customer_id || '';
+  }
+
+  if (leadService) leadService.value = lead.service_type || 'egyeb';
+  if (leadSource) leadSource.value = lead.source || 'manual';
+  if (leadSubject) leadSubject.value = lead.subject || '';
+  if (leadDescription) leadDescription.value = lead.description || '';
+  if (leadLocation) leadLocation.value = lead.location_text || '';
+  if (leadPreferredDate) leadPreferredDate.value = lead.preferred_date || '';
+  if (leadStatus) leadStatus.value = lead.status || 'new';
+
+  if (leadFollowUp) {
+    leadFollowUp.value = lead.follow_up_at
+      ? String(lead.follow_up_at).replace(' ', 'T').slice(0, 16)
+      : '';
+  }
+
+  if (leadFormPanel) leadFormPanel.hidden = false;
+
+  showMessage(leadFormMessage, 'Érdeklődő szerkesztése');
+}
   async function loadLeads() {
     if (!leadList) return;
 
@@ -500,6 +549,7 @@ actions.append(deleteButton);
       clearMessage(leadFormMessage);
 
       const isNewCustomer = !leadCustomerMode || leadCustomerMode.value === 'new';
+      const currentLeadId = leadId?.value;
       let customerId = '';
 
       try {
@@ -550,16 +600,33 @@ actions.append(deleteButton);
           follow_up_at: leadFollowUp?.value || ''
         };
 
-        showMessage(leadFormMessage, 'Érdeklődő mentése...');
+      showMessage(leadFormMessage, 'Érdeklődő mentése...');
 
-        await api('/api/leads', {
-          method: 'POST',
-          body: JSON.stringify(data)
-        });
+if (currentLeadId) {
+  await api(`/api/leads/${encodeURIComponent(currentLeadId)}`, {
+    method: 'PUT',
+    body: JSON.stringify(data)
+  });
+} else {
+  await api('/api/leads', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
 
-        showMessage(leadFormMessage, 'Érdeklődő sikeresen rögzítve.', 'success');
-        leadForm?.reset();
-        if (leadFormPanel) leadFormPanel.hidden = true;
+      const wasEditing = Boolean(currentLeadId);
+
+resetLeadForm();
+
+if (leadFormPanel) leadFormPanel.hidden = true;
+
+showMessage(
+  leadListMessage,
+  wasEditing
+    ? 'Érdeklődő sikeresen módosítva.'
+    : 'Érdeklődő sikeresen rögzítve.',
+  'success'
+);
 
         await loadLeads();
         await loadCustomers();
