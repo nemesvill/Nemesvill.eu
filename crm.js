@@ -890,15 +890,21 @@ showMessage(
   }
 
     // ÚJ MUNKA ÉS MUNKA MENTÉSE
-  if (newJobButton) {
-    newJobButton.addEventListener('click', () => {
+ if (newJobButton) {
+    newJobButton.onclick = function () {
       resetJobForm();
       if (jobFormTitle) jobFormTitle.textContent = 'Új munka';
       if (jobFormPanel) jobFormPanel.hidden = false;
       populateJobCustomers();
       populateJobLeads();
-      jobFormPanel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
+
+      if (jobFormPanel) {
+        jobFormPanel.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }
+    };
   }
 
   if (cancelJobButton) {
