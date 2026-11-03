@@ -889,6 +889,8 @@ showMessage(
     }
   }
 
+console.log('ELÉRTÜK A MUNKÁK ESEMÉNYKEZELŐJÉT');
+  
 // ÚJ MUNKA GOMB – DELEGÁLT ESEMÉNYKEZELÉS
 document.addEventListener('click', function(event) {
   const button = event.target.closest('#newJobButton');
