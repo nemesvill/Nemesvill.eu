@@ -904,29 +904,27 @@ showMessage(
 
 console.log('ELÉRTÜK A MUNKÁK ESEMÉNYKEZELŐJÉT');
   
-// ÚJ MUNKA GOMB – DELEGÁLT ESEMÉNYKEZELÉS
-document.addEventListener('click', function(event) {
-  const button = event.target.closest('#newJobButton');
-  if (!button) return;
+// ÚJ MUNKA GOMB – KÖZVETLEN ESEMÉNYKEZELÉS
+if (newJobButton) {
+  newJobButton.addEventListener('click', () => {
+    resetJobForm();
 
-  resetJobForm();
+    if (jobFormTitle) {
+      jobFormTitle.textContent = 'Új munka';
+    }
 
-  const panel = document.getElementById('jobFormPanel');
-  const title = document.getElementById('jobFormTitle');
+    populateJobCustomers();
+    populateJobLeads();
 
-  if (title) title.textContent = 'Új munka';
-
-  populateJobCustomers();
-  populateJobLeads();
-
-  if (panel) {
-    panel.hidden = false;
-    panel.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start'
-    });
-  }
-});
+    if (jobFormPanel) {
+      jobFormPanel.hidden = false;
+      jobFormPanel.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
+  });
+}
   if (cancelJobButton) {
     cancelJobButton.addEventListener('click', resetJobForm);
   }
