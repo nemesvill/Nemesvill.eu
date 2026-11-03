@@ -202,8 +202,7 @@
       editButton.textContent = 'Szerkesztés';
       editButton.addEventListener('click', () => editCustomer(customer));
 
-      actions.append(editButton);   
-leadList.append(item);
+      actions.append(editButton);
       
 // TÖRLÉS GOMB
 const deleteButton = document.createElement('button');
