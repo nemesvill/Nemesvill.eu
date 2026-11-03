@@ -889,24 +889,29 @@ showMessage(
     }
   }
 
-    // ÚJ MUNKA ÉS MUNKA MENTÉSE
- if (newJobButton) {
-    newJobButton.onclick = function () {
-      resetJobForm();
-      if (jobFormTitle) jobFormTitle.textContent = 'Új munka';
-      if (jobFormPanel) jobFormPanel.hidden = false;
-      populateJobCustomers();
-      populateJobLeads();
+// ÚJ MUNKA GOMB – DELEGÁLT ESEMÉNYKEZELÉS
+document.addEventListener('click', function(event) {
+  const button = event.target.closest('#newJobButton');
+  if (!button) return;
 
-      if (jobFormPanel) {
-        jobFormPanel.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start'
-        });
-      }
-    };
+  resetJobForm();
+
+  const panel = document.getElementById('jobFormPanel');
+  const title = document.getElementById('jobFormTitle');
+
+  if (title) title.textContent = 'Új munka';
+
+  populateJobCustomers();
+  populateJobLeads();
+
+  if (panel) {
+    panel.hidden = false;
+    panel.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    });
   }
-
+});
   if (cancelJobButton) {
     cancelJobButton.addEventListener('click', resetJobForm);
   }
