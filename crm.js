@@ -862,7 +862,7 @@ showMessage(
     jobId.value = '';
     if (jobFormTitle) jobFormTitle.textContent = 'Új munka';
     if (jobFormMessage) jobFormMessage.textContent = '';
-    if (jobFormPanel) jobFormPanel.hidden = true;
+    if (jobFormPanel) { jobFormPanel.hidden = true; jobFormPanel.style.display = 'none'; }
   }
 
   function editJob(id) {
@@ -884,7 +884,7 @@ showMessage(
 
     if (jobFormTitle) jobFormTitle.textContent = 'Munka szerkesztése';
     if (jobFormMessage) jobFormMessage.textContent = '';
-    if (jobFormPanel) jobFormPanel.hidden = false;
+    if (jobFormPanel) { jobFormPanel.hidden = false; jobFormPanel.style.display = 'block'; }
     jobFormPanel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
@@ -915,6 +915,7 @@ if (newJobButton) {
     // Az űrlapot először jelenítsük meg; a listák feltöltése ne akadályozza.
     if (jobFormPanel) {
       jobFormPanel.hidden = false;
+      jobFormPanel.style.display = 'block';
       jobFormPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
