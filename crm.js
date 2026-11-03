@@ -749,16 +749,21 @@ showMessage(
     async function loadJobs() {
     if (!jobList) return;
 
-    jobList.innerHTML = '<p> munkák betöltése...</p>';
+    jobList.innerHTML = '<p class="muted">Munkák betöltése...</p>';
+    if (jobListMessage) jobListMessage.textContent = '';
 
     try {
-      const result = await api('/api/jobs');
-      jobs = result.items || result.jobs || [];
+      const result = await api('/api/jobs', {
+        signal: AbortSignal.timeout(12000)
+      });
+      jobs = Array.isArray(result) ? result : (result.items || result.jobs || []);
       renderJobs();
     } catch (error) {
       jobList.innerHTML = '';
       if (jobListMessage) {
-        jobListMessage.textContent = error.message || 'Nem sikerült betölteni a munkákat.';
+        jobListMessage.textContent = error.name === 'TimeoutError' || error.name === 'AbortError'
+          ? 'A munkák lekérése időtúllépés miatt megszakadt. Ellenőrizd a kapcsolatot, majd töltsd újra az oldalt.'
+          : (error.message || 'Nem sikerült betölteni a munkákat.');
       }
     }
   }
@@ -907,22 +912,26 @@ console.log('ELÉRTÜK A MUNKÁK ESEMÉNYKEZELŐJÉT');
 // ÚJ MUNKA GOMB – KÖZVETLEN ESEMÉNYKEZELÉS
 if (newJobButton) {
   newJobButton.addEventListener('click', () => {
-    resetJobForm();
-
-    if (jobFormTitle) {
-      jobFormTitle.textContent = 'Új munka';
-    }
-
-    populateJobCustomers();
-    populateJobLeads();
-
+    // Az űrlapot először jelenítsük meg; a listák feltöltése ne akadályozza.
     if (jobFormPanel) {
       jobFormPanel.hidden = false;
-      jobFormPanel.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start'
-      });
+      jobFormPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+
+    resetJobForm();
+    if (jobFormTitle) jobFormTitle.textContent = 'Új munka';
+
+    try {
+      populateJobCustomers();
+      populateJobLeads();
+    } catch (error) {
+      console.error('Az új munka űrlap előkészítése sikertelen:', error);
+      if (jobFormMessage) {
+        jobFormMessage.textContent = 'Az űrlap megnyílt, de az ügyféladatok betöltése hibát jelzett.';
+      }
+    }
+
+    if (jobFormPanel) jobFormPanel.hidden = false;
   });
 }
   if (cancelJobButton) {
