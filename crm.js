@@ -834,27 +834,27 @@ showMessage(
     // MUNKÁK FELÜLETÉNEK ELEMEI
   let jobs = [];
 
-  const jobList = $('#jobList');
-  const jobListMessage = $('#jobListMessage');
-  const jobSearch = $('#jobSearch');
-  const newJobButton = $('#newJobButton');
-  const jobFormPanel = $('#jobFormPanel');
-  const jobFormTitle = $('#jobFormTitle');
-  const jobForm = $('#jobForm');
-  const jobId = $('#jobId');
-  const jobCustomer = $('#jobCustomer');
-  const jobLead = $('#jobLead');
-  const jobService = $('#jobService');
-  const jobTitle = $('#jobTitle');
-  const jobDescription = $('#jobDescription');
-  const jobStart = $('#jobStart');
-  const jobEnd = $('#jobEnd');
-  const jobAddress = $('#jobAddress');
-  const jobLaborMinutes = $('#jobLaborMinutes');
-  const jobStatus = $('#jobStatus');
-  const jobNotes = $('#jobNotes');
-  const jobFormMessage = $('#jobFormMessage');
-  const cancelJobButton = $('#cancelJobButton');
+  const jobList = $('jobList');
+  const jobListMessage = $('jobListMessage');
+  const jobSearch = $('jobSearch');
+  const newJobButton = $('newJobButton');
+  const jobFormPanel = $('jobFormPanel');
+  const jobFormTitle = $('jobFormTitle');
+  const jobForm = $('jobForm');
+  const jobId = $('jobId');
+  const jobCustomer = $('jobCustomer');
+  const jobLead = $('jobLead');
+  const jobService = $('jobService');
+  const jobTitle = $('jobTitle');
+  const jobDescription = $('jobDescription');
+  const jobStart = $('jobStart');
+  const jobEnd = $('jobEnd');
+  const jobAddress = $('jobAddress');
+  const jobLaborMinutes = $('jobLaborMinutes');
+  const jobStatus = $('jobStatus');
+  const jobNotes = $('jobNotes');
+  const jobFormMessage = $('jobFormMessage');
+  const cancelJobButton = $('cancelJobButton');
 
   function resetJobForm() {
     if (!jobForm) return;
