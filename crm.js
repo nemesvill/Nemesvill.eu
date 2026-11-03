@@ -932,7 +932,7 @@ if (newJobButton) {
       }
     }
 
-    if (jobFormPanel) jobFormPanel.hidden = false;
+    if (jobFormPanel) { jobFormPanel.hidden = false; jobFormPanel.style.display = 'block'; }
   });
 }
   if (cancelJobButton) {
