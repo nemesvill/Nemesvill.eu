@@ -862,7 +862,6 @@ showMessage(
     jobId.value = '';
     if (jobFormTitle) jobFormTitle.textContent = 'Új munka';
     if (jobFormMessage) jobFormMessage.textContent = '';
-    if (jobFormPanel) { jobFormPanel.hidden = true; jobFormPanel.style.display = 'none'; }
   }
 
   function editJob(id) {
@@ -936,7 +935,10 @@ if (newJobButton) {
   });
 }
   if (cancelJobButton) {
-    cancelJobButton.addEventListener('click', resetJobForm);
+    cancelJobButton.addEventListener('click', () => {
+      resetJobForm();
+      if (jobFormPanel) { jobFormPanel.hidden = true; jobFormPanel.style.display = 'none'; }
+    });
   }
 
   if (jobSearch) {
@@ -989,6 +991,7 @@ if (newJobButton) {
         });
 
         resetJobForm();
+        if (jobFormPanel) { jobFormPanel.hidden = true; jobFormPanel.style.display = 'none'; }
         await loadJobs();
 
         if (jobListMessage) {
