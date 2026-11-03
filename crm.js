@@ -690,27 +690,40 @@ showMessage(
     return value ? String(value).replace(' ', 'T').slice(0, 16) : '';
   }
 
-  function populateJobCustomers() {
-    if (!jobCustomer) return;
-    const previousValue = jobCustomer.value;
-    jobCustomer.innerHTML = '';
+ function populateJobCustomers() {
+  const select = document.getElementById('jobCustomer');
 
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = 'Ügyfél kiválasztása';
-    jobCustomer.append(placeholder);
-
-    customers.forEach((customer) => {
-      const option = document.createElement('option');
-      option.value = customer.id;
-      option.textContent = `${customerName(customer)}${customer.phone ? ' – ' + customer.phone : ''}`;
-      jobCustomer.append(option);
-    });
-
-    if (customers.some(customer => customer.id === previousValue)) {
-      jobCustomer.value = previousValue;
-    }
+  if (!select) {
+    console.error('Nem található a jobCustomer mező!');
+    return;
   }
+
+  const previousValue = select.value;
+
+  select.innerHTML = '';
+
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = 'Ügyfél kiválasztása';
+  select.appendChild(placeholder);
+
+  console.log('Betöltendő ügyfelek:', customers);
+
+  customers.forEach((customer) => {
+    const option = document.createElement('option');
+    option.value = customer.id;
+    option.textContent =
+      `${customerName(customer)}${customer.phone ? ' – ' + customer.phone : ''}`;
+
+    select.appendChild(option);
+  });
+
+  if (customers.some(customer => String(customer.id) === previousValue)) {
+    select.value = previousValue;
+  }
+
+  console.log('Ügyfélválasztó opciók:', select.options.length);
+}
 
   function populateJobLeads(selectedValue = null) {
     if (!jobLead) return;
