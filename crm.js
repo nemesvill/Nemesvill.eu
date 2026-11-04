@@ -833,16 +833,22 @@ showMessage(
         const label = document.createElement('span');
         label.textContent = item.income_date + ' · ' + (item.invoice_number || 'Számlaszám nincs megadva') +
           ' · ' + item.description + ' · ' + formatHuf(item.gross_amount) +
-          ' · ' + (item.paid ? 'Fizetve' : 'Fizetetlen');
+          ' · ' + (item.paid ? 'Fizetve (' + (item.paid_date || 'dátum nélkül') + ')' : 'Fizetetlen');
         const actions = document.createElement('div');
         actions.className = 'job-income-actions';
         const paidButton = document.createElement('button');
         paidButton.type = 'button'; paidButton.className = 'secondary';
         paidButton.textContent = item.paid ? 'Fizetetlenre állít' : 'Fizetettnek jelöl';
         paidButton.addEventListener('click', async () => {
+          let paidDate = null;
+          if (!item.paid) {
+            paidDate = prompt('Mikor érkezett meg ténylegesen az összeg? (ÉÉÉÉ-HH-NN)', new Date().toISOString().slice(0,10));
+            if (paidDate === null) return;
+            if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(paidDate)) { alert('A dátum formátuma ÉÉÉÉ-HH-NN legyen.'); return; }
+          }
           try {
             await api('/api/income-records/' + encodeURIComponent(item.id), {
-              method:'PUT', body:JSON.stringify({invoice_number:item.invoice_number, paid:!item.paid})
+              method:'PUT', body:JSON.stringify({invoice_number:item.invoice_number, paid:!item.paid, paid_date:paidDate})
             });
             panel.remove(); await toggleJobSheet(job, card);
           } catch (e) { alert(e.message); }
@@ -868,13 +874,22 @@ showMessage(
         '<label>Megnevezés<input name="description" required maxlength="500" placeholder="Pl. klímaszerelés munkadíja"></label>' +
         '<label>Számla összege (Ft)<input name="gross_amount" type="number" min="1" step="1" required></label>' +
         '<label class="job-income-paid"><input name="paid" type="checkbox" value="1"> Már ki van fizetve</label>' +
+        '<label>Tényleges fizetés dátuma<input name="paid_date" type="date" disabled></label>' +
         '<button type="submit">Bevétel mentése</button>';
+      const paidCheckbox = incomeForm.querySelector('input[name="paid"]');
+      const paidDateInput = incomeForm.querySelector('input[name="paid_date"]');
+      paidCheckbox.addEventListener('change', () => {
+        paidDateInput.disabled = !paidCheckbox.checked;
+        if (paidCheckbox.checked && !paidDateInput.value) paidDateInput.value = new Date().toISOString().slice(0,10);
+        if (!paidCheckbox.checked) paidDateInput.value = '';
+      });
       incomeForm.addEventListener('submit', async event => {
         event.preventDefault();
         const fd = new FormData(incomeForm);
         const payload = Object.fromEntries(fd.entries());
         payload.gross_amount = Number(payload.gross_amount);
         payload.paid = fd.has('paid');
+        if (!payload.paid) payload.paid_date = null;
         try {
           await api('/api/jobs/' + encodeURIComponent(job.id) + '/income', {
             method:'POST', body:JSON.stringify(payload)
