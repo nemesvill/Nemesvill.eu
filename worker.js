@@ -1292,6 +1292,54 @@ if (jobMatch && request.method === "DELETE") {
         return json({ success: true }, 200, cors);
       }
 
+
+      // Munkához kapcsolódó bevételek / számlák
+      const jobIncomeMatch = url.pathname.match(/^\/api\/jobs\/([^/]+)\/income$/);
+      if (jobIncomeMatch && request.method === "GET") {
+        const jobId = jobIncomeMatch[1];
+        const job = await env.DB.prepare("SELECT id FROM jobs WHERE id = ?").bind(jobId).first();
+        if (!job) return json({ error: "A munka nem található." }, 404, cors);
+        const result = await env.DB.prepare("SELECT * FROM income_records WHERE job_id = ? ORDER BY income_date DESC, created_at DESC").bind(jobId).all();
+        return json({ items: result.results || [], tax_mode: "AAM" }, 200, cors);
+      }
+
+      if (jobIncomeMatch && request.method === "POST") {
+        const jobId = jobIncomeMatch[1];
+        const job = await env.DB.prepare("SELECT id, customer_id FROM jobs WHERE id = ?").bind(jobId).first();
+        if (!job) return json({ error: "A munka nem található." }, 404, cors);
+        const data = await readBody(request) || {};
+        const description = String(data.description || "").trim().slice(0, 500);
+        const invoiceNumber = String(data.invoice_number || "").trim().slice(0, 100) || null;
+        const incomeDate = String(data.income_date || "").trim();
+        const amount = Number(data.gross_amount);
+        if (!description) return json({ error: "A bevétel megnevezése kötelező." }, 400, cors);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(incomeDate)) return json({ error: "Érvényes dátum szükséges." }, 400, cors);
+        if (!Number.isSafeInteger(amount) || amount <= 0) return json({ error: "Az összeg pozitív egész forint legyen." }, 400, cors);
+        const id = crypto.randomUUID();
+        const paid = data.paid ? 1 : 0;
+        await env.DB.prepare("INSERT INTO income_records (id, job_id, customer_id, income_date, description, net_amount, vat_amount, gross_amount, invoice_number, paid) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?)")
+          .bind(id, jobId, job.customer_id, incomeDate, description, amount, amount, invoiceNumber, paid).run();
+        return json({ success: true, id, tax_mode: "AAM" }, 201, cors);
+      }
+
+      const incomeRecordMatch = url.pathname.match(/^\/api\/income-records\/([^/]+)$/);
+      if (incomeRecordMatch && request.method === "PUT") {
+        const data = await readBody(request) || {};
+        const existing = await env.DB.prepare("SELECT id FROM income_records WHERE id = ?").bind(incomeRecordMatch[1]).first();
+        if (!existing) return json({ error: "A bevételi tétel nem található." }, 404, cors);
+        const invoiceNumber = String(data.invoice_number || "").trim().slice(0, 100) || null;
+        const paid = data.paid ? 1 : 0;
+        await env.DB.prepare("UPDATE income_records SET invoice_number = ?, paid = ? WHERE id = ?")
+          .bind(invoiceNumber, paid, incomeRecordMatch[1]).run();
+        return json({ success: true }, 200, cors);
+      }
+
+      if (incomeRecordMatch && request.method === "DELETE") {
+        const result = await env.DB.prepare("DELETE FROM income_records WHERE id = ?").bind(incomeRecordMatch[1]).run();
+        if (!result.meta?.changes) return json({ error: "A bevételi tétel nem található." }, 404, cors);
+        return json({ success: true }, 200, cors);
+      }
+
       return json(
         { error: "Ismeretlen végpont." },
         404,
