@@ -1312,6 +1312,34 @@ if (jobMatch && request.method === "DELETE") {
       }
 
 
+      // Munkánkénti nyereségességi áttekintő
+      if (url.pathname === "/api/profitability" && request.method === "GET") {
+        const result = await env.DB.prepare(`
+          SELECT
+            jobs.id, jobs.job_number, jobs.title, jobs.status, jobs.created_at,
+            customers.name AS customer_name,
+            quotes.quote_number, COALESCE(quotes.gross_total,0) AS offer_amount,
+            COALESCE((SELECT SUM(gross_amount) FROM income_records WHERE job_id=jobs.id),0) AS invoiced_amount,
+            COALESCE((SELECT SUM(gross_amount) FROM income_records WHERE job_id=jobs.id AND paid=1),0) AS received_amount,
+            COALESCE((SELECT SUM(gross_amount) FROM income_records WHERE job_id=jobs.id AND paid=0),0) AS receivable_amount,
+            COALESCE((SELECT SUM(ROUND(quantity*unit_net_cost)) FROM job_cost_items WHERE job_id=jobs.id AND cost_type='material'),0) AS material_cost,
+            COALESCE((SELECT SUM(ROUND(quantity*unit_net_cost)) FROM job_cost_items WHERE job_id=jobs.id AND cost_type='labor'),0) AS labor_cost,
+            COALESCE((SELECT SUM(ROUND(quantity*unit_net_cost)) FROM job_cost_items WHERE job_id=jobs.id AND cost_type IN ('travel','other')),0) AS other_direct_cost,
+            COALESCE((SELECT SUM(gross_amount) FROM expenses WHERE job_id=jobs.id),0) AS linked_expenses
+          FROM jobs
+          LEFT JOIN customers ON customers.id=jobs.customer_id
+          LEFT JOIN quotes ON quotes.id=jobs.quote_id
+          WHERE jobs.status <> 'cancelled'
+          ORDER BY jobs.created_at DESC LIMIT 300
+        `).all();
+        const items=(result.results||[]).map(row=>{
+          const costs=Number(row.material_cost||0)+Number(row.labor_cost||0)+Number(row.other_direct_cost||0)+Number(row.linked_expenses||0);
+          const invoiced=Number(row.invoiced_amount||0);
+          return {...row,total_cost:costs,realized_result:invoiced-costs,balance_due:Math.max(0,invoiced-Number(row.received_amount||0)),offer_margin:row.offer_amount?Number(row.offer_amount)-costs:null};
+        });
+        return json({items,tax_mode:"AAM"},200,cors);
+      }
+
       // Munkalap: költségek és pénzügyi összesítő
       const jobCostsMatch = url.pathname.match(/^\/api\/jobs\/([^/]+)\/costs$/);
       if (jobCostsMatch && request.method === "GET") {
