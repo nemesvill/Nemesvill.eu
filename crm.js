@@ -756,6 +756,7 @@ showMessage(
     try {
       const data = await api('/api/jobs/' + encodeURIComponent(job.id) + '/costs');
       panel.innerHTML = '';
+      panel.append(printButton);
       const summary = document.createElement('div');
       summary.className = 'job-sheet-summary';
       const t = data.totals || {};
