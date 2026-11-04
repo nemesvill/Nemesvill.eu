@@ -389,8 +389,8 @@ export default {
         if (installed && !/^\d{4}-\d{2}-\d{2}$/.test(installed)) return json({error:"Érvénytelen telepítési dátum."},400,cors);
         if (lastService && !/^\d{4}-\d{2}-\d{2}$/.test(lastService)) return json({error:"Érvénytelen utolsó karbantartási dátum."},400,cors);
         if (nextService && !/^\d{4}-\d{2}-\d{2}$/.test(nextService)) return json({error:"Érvénytelen következő karbantartási dátum."},400,cors);
-        if (!nextService && lastService) {
-          const [y,m,d] = lastService.split("-").map(Number);
+        if (!nextService && (lastService || installed)) {
+          const [y,m,d] = (lastService || installed).split("-").map(Number);
           const monthIndex = m - 1 + 6;
           const targetYear = y + Math.floor(monthIndex / 12);
           const targetMonth = monthIndex % 12;
