@@ -1694,6 +1694,19 @@ if (newJobButton) {
   // PÉNZÜGYI ÁTTEKINTŐ ÉS KIADÁSOK
   const financialMonth=$('financialMonth'), financialSummary=$('financialSummary'), financialDetails=$('financialDetails'), financialMessage=$('financialMessage');
   const expenseForm=$('expenseForm'), expenseList=$('expenseList'), expenseMessage=$('expenseMessage');
+  const expenseJob=$('expenseJob');
+  function populateExpenseJobs(){
+    if(!expenseJob)return;
+    const selected=expenseJob.value;
+    expenseJob.innerHTML='<option value="">Nincs – általános kiadás</option>';
+    (jobs||[]).forEach(job=>{
+      const option=document.createElement('option');
+      option.value=job.id;
+      option.textContent=(job.job_number||'')+' – '+(job.title||job.description||'Munka');
+      expenseJob.append(option);
+    });
+    if(selected)expenseJob.value=selected;
+  }
   const money=value=>new Intl.NumberFormat('hu-HU',{style:'currency',currency:'HUF',maximumFractionDigits:0}).format(Number(value||0));
   async function loadFinancial(){
     if(!financialMonth||!financialSummary)return;
