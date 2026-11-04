@@ -35,3 +35,12 @@
 .chart-label{font-weight:700;color:var(--muted)}.chart-bars{display:grid;gap:6px}.chart-line small{display:block;color:var(--muted);font-size:.78rem;margin-bottom:3px}
 .chart-track{height:9px;border-radius:8px;background:#203443;overflow:hidden}.chart-fill{height:100%;border-radius:8px;min-width:0}.chart-fill.received{background:#2fc6c0}.chart-fill.paid{background:#e6a45d}
 @media(max-width:620px){.financial-toolbar{align-items:stretch}.financial-toolbar label{width:100%}.chart-row{grid-template-columns:48px 1fr;gap:7px}}
+
+.profitability-card{padding:16px;margin:12px 0;border:1px solid var(--line);border-radius:12px;background:#091722}
+.profitability-heading{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.profitability-heading span{color:var(--muted);font-size:.9rem}
+.profitability-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.profitability-value{padding:10px;border:1px solid var(--line);border-radius:9px}
+.profitability-value span{display:block;color:var(--muted);font-size:.78rem}
+.profitability-value strong{display:block;margin-top:5px}
+@media(max-width:620px){.profitability-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
