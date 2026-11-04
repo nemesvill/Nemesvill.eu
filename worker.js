@@ -1603,7 +1603,7 @@ if (jobMatch && request.method === "DELETE") {
         if (!verifiedType || verifiedType !== file.type) {
           return json({ error: "A fájl tartalma nem egyezik a kiválasztott fájltípussal. Kérlek, valódi JPG, PNG, WebP vagy PDF fájlt válassz." }, 400, cors);
         }
-        const safeName = String(file.name || "csatolmany").replace(/[\/\r\n\0]/g, "_").slice(0, 180);
+        const safeName = String(file.name || "csatolmany").replace(/[\\/\r\n\0]/g, "_").slice(0, 180);
         const id = crypto.randomUUID();
         const key = "jobs/" + jobId + "/" + id;
         await env.FILES.put(key, file.stream(), {
