@@ -697,7 +697,7 @@ showMessage(
         del.type = 'button'; del.className = 'secondary'; del.textContent = 'Törlés';
         del.addEventListener('click', async () => {
           if (!confirm('Törlöd ezt a költségtételt?')) return;
-          try { await api('/api/job-cost-items/' + encodeURIComponent(item.id), {method:'DELETE'}); await toggleJobSheet(job, card); }
+          try { await api('/api/job-cost-items/' + encodeURIComponent(item.id), {method:'DELETE'}); panel.remove(); await toggleJobSheet(job, card); }
           catch (e) { alert(e.message); }
         });
         row.append(label, del); list.append(row);
