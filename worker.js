@@ -418,9 +418,9 @@ export default {
 
         const id = crypto.randomUUID();
         const quoteNumber = await generateQuoteNumber(env.DB);
-        const issueDate = /^\\d{4}-\\d{2}-\\d{2}$/.test(data.issue_date || "")
+        const issueDate = /^\d{4}-\d{2}-\d{2}$/.test(data.issue_date || "")
           ? data.issue_date : new Date().toISOString().slice(0, 10);
-        const validUntil = /^\\d{4}-\\d{2}-\\d{2}$/.test(data.valid_until || "") ? data.valid_until : null;
+        const validUntil = /^\d{4}-\d{2}-\d{2}$/.test(data.valid_until || "") ? data.valid_until : null;
 
         const statements = [env.DB.prepare(`
           INSERT INTO quotes (
@@ -446,7 +446,7 @@ export default {
           net_total: netTotal, vat_total: 0, gross_total: netTotal }, 201, cors);
       }
 
-      const quoteMatch = url.pathname.match(/^\\/api\\/quotes\\/([^/]+)$/);
+      const quoteMatch = url.pathname.match(/^\/api\/quotes\/([^/]+)$/);
 
       if (quoteMatch && request.method === "GET") {
         const quote = await env.DB.prepare("SELECT * FROM quotes WHERE id = ?")
@@ -473,7 +473,7 @@ export default {
           updates.push("status = ?"); values.push(data.status);
         }
         if (data.valid_until !== undefined) {
-          if (data.valid_until && !/^\\d{4}-\\d{2}-\\d{2}$/.test(data.valid_until)) {
+          if (data.valid_until && !/^\d{4}-\d{2}-\d{2}$/.test(data.valid_until)) {
             return json({ error: "Érvénytelen érvényességi dátum." }, 400, cors);
           }
           updates.push("valid_until = ?"); values.push(data.valid_until || null);
