@@ -429,8 +429,8 @@ export default {
             (nextService && !/^\d{4}-\d{2}-\d{2}$/.test(nextService))) {
           return json({error:"Érvénytelen dátumformátum."},400,cors);
         }
-        if (!nextService && lastService) {
-          const [y,m,d] = lastService.split("-").map(Number);
+        if (!nextService && (lastService || installed)) {
+          const [y,m,d] = (lastService || installed).split("-").map(Number);
           const monthIndex = m - 1 + 6;
           const targetYear = y + Math.floor(monthIndex / 12);
           const targetMonth = monthIndex % 12;
