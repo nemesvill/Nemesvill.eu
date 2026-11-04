@@ -1799,6 +1799,24 @@ if (newJobButton) {
     }
   }
 
+  const maintenanceTestEmailButton = $('maintenanceTestEmailButton');
+  maintenanceTestEmailButton?.addEventListener('click', async () => {
+    if (!confirm('Elküldjük az egyszeri klímakarbantartási tesztjelentést a nemesvillany@gmail.com címre?')) return;
+    maintenanceTestEmailButton.disabled = true;
+    maintenanceTestEmailButton.textContent = 'Küldés folyamatban…';
+    try {
+      const result = await api('/api/maintenance/test-email', { method: 'POST' });
+      showMessage(maintenanceMessage,
+        `A Resend elfogadta a tesztjelentést. Lejárt: ${result.counts?.overdue ?? 0}, 30 napon belül esedékes: ${result.counts?.upcoming ?? 0}. Ellenőrizd a beérkező leveleket és a Spam mappát is.`,
+        'success');
+    } catch (error) {
+      showMessage(maintenanceMessage, error.message, 'error');
+    } finally {
+      maintenanceTestEmailButton.disabled = false;
+      maintenanceTestEmailButton.textContent = 'Tesztjelentés küldése';
+    }
+  });
+
   function editMaintenance(item) {
     maintenanceForm.reset();
     if (maintenanceNextService) delete maintenanceNextService.dataset.manual;
