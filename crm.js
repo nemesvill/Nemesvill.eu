@@ -48,7 +48,7 @@
       ...options,
       credentials: 'include',
       headers: {
-        'Content-Type': 'application/json',
+        ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
         ...(options.headers || {})
       }
     });
@@ -925,6 +925,85 @@ showMessage(
         } catch (e) { alert(e.message); submit.disabled = false; }
       });
       panel.append(form);
+
+      // Fényképek és dokumentumok csatolása a munkához
+      const attachmentHeading = document.createElement('h4');
+      attachmentHeading.textContent = 'Fényképek és dokumentumok';
+      panel.append(attachmentHeading);
+      const attachmentHelp = document.createElement('p');
+      attachmentHelp.className = 'muted';
+      attachmentHelp.textContent = 'JPG, PNG, WebP vagy PDF · legfeljebb 10 MB/fájl. A fájlok privát tárhelyen maradnak.';
+      panel.append(attachmentHelp);
+      const attachmentList = document.createElement('div');
+      attachmentList.className = 'job-cost-list';
+      attachmentList.textContent = 'Csatolmányok betöltése...';
+      panel.append(attachmentList);
+      const attachmentForm = document.createElement('form');
+      attachmentForm.className = 'job-cost-form';
+      const fileLabel = document.createElement('label');
+      fileLabel.className = 'job-wide-field';
+      fileLabel.textContent = 'Fájl kiválasztása';
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.name = 'file';
+      fileInput.accept = 'image/jpeg,image/png,image/webp,application/pdf';
+      fileInput.required = true;
+      fileLabel.append(fileInput);
+      const uploadButton = document.createElement('button');
+      uploadButton.type = 'submit';
+      uploadButton.textContent = 'Fájl feltöltése';
+      attachmentForm.append(fileLabel, uploadButton);
+      attachmentForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        const file = fileInput.files && fileInput.files[0];
+        if (!file) return;
+        if (file.size > 10 * 1024 * 1024) { alert('A fájl legfeljebb 10 MB lehet.'); return; }
+        uploadButton.disabled = true;
+        const fd = new FormData();
+        fd.append('file', file);
+        try {
+          await api('/api/jobs/' + encodeURIComponent(job.id) + '/attachments', { method: 'POST', body: fd });
+          panel.remove();
+          await toggleJobSheet(job, card);
+        } catch (e) { alert(e.message); uploadButton.disabled = false; }
+      });
+      panel.append(attachmentForm);
+      try {
+        const attachmentData = await api('/api/jobs/' + encodeURIComponent(job.id) + '/attachments');
+        attachmentList.innerHTML = '';
+        (attachmentData.items || []).forEach(file => {
+          const row = document.createElement('div');
+          row.className = 'job-cost-row';
+          const label = document.createElement('span');
+          const sizeMb = (Number(file.file_size || 0) / (1024 * 1024)).toFixed(2);
+          label.textContent = file.file_name + ' · ' + sizeMb + ' MB · ' + new Date(file.created_at).toLocaleString('hu-HU');
+          const actions = document.createElement('div');
+          actions.className = 'job-income-actions';
+          const download = document.createElement('a');
+          download.href = 'https://crm-api.nemesvill.eu/api/attachments/' + encodeURIComponent(file.id);
+          download.textContent = 'Letöltés';
+          download.target = '_blank';
+          download.rel = 'noopener';
+          download.className = 'secondary';
+          download.style.padding = '8px 12px';
+          download.style.borderRadius = '8px';
+          download.style.textDecoration = 'none';
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.className = 'secondary';
+          remove.textContent = 'Törlés';
+          remove.addEventListener('click', async () => {
+            if (!confirm('Biztosan törlöd ezt a csatolmányt?')) return;
+            try { await api('/api/attachments/' + encodeURIComponent(file.id), { method: 'DELETE' }); panel.remove(); await toggleJobSheet(job, card); }
+            catch (e) { alert(e.message); }
+          });
+          actions.append(download, remove);
+          row.append(label, actions);
+          attachmentList.append(row);
+        });
+        if (!(attachmentData.items || []).length) attachmentList.textContent = 'Ehhez a munkához még nincs csatolmány.';
+      } catch (e) { attachmentList.textContent = 'A csatolmányok betöltése nem sikerült: ' + e.message; }
+
       const note = document.createElement('p');
       note.className = 'muted';
       note.textContent = 'Az összesítő a rögzített munkaköltségeket, kiadásokat és bevételeket mutatja. Az AAM mód változatlan.';
