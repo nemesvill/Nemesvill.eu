@@ -85,6 +85,7 @@
     loadExpenses();
     loadProfitability();
     loadQuotes();
+    loadMaintenance();
     checkDatabase();
   }
 
@@ -249,6 +250,7 @@ actions.append(deleteButton);
       renderCustomers();
       populateLeadCustomers();
       populateJobCustomers();
+      populateMaintenanceCustomers(maintenanceCustomer?.value || '');
       clearMessage(customerListMessage);
     } catch (error) {
       showMessage(customerListMessage, error.message, 'error');
@@ -1689,6 +1691,179 @@ if (newJobButton) {
       await loadQuotes();
     } catch(error) {
       showMessage(quoteFormMessage, error.message, 'error');
+    }
+  });
+
+
+  // KLÍMAKARBANTARTÁS
+  const maintenanceForm = $('maintenanceForm');
+  const maintenanceFormPanel = $('maintenanceFormPanel');
+  const maintenanceList = $('maintenanceList');
+  const maintenanceMessage = $('maintenanceMessage');
+  const maintenanceSearch = $('maintenanceSearch');
+  const maintenanceCustomer = $('maintenanceCustomer');
+  const maintenanceLastService = $('maintenanceLastService');
+  const maintenanceNextService = $('maintenanceNextService');
+  let maintenanceItems = [];
+
+  function addMonthsToDate(value, months = 6) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return '';
+    const [year, month, day] = value.split('-').map(Number);
+    const targetMonth = month - 1 + months;
+    const targetYear = year + Math.floor(targetMonth / 12);
+    const normalizedMonth = ((targetMonth % 12) + 12) % 12;
+    const lastDay = new Date(Date.UTC(targetYear, normalizedMonth + 1, 0)).getUTCDate();
+    return new Date(Date.UTC(targetYear, normalizedMonth, Math.min(day, lastDay))).toISOString().slice(0, 10);
+  }
+
+  function populateMaintenanceCustomers(selected = '') {
+    if (!maintenanceCustomer) return;
+    maintenanceCustomer.innerHTML = '<option value="">Ügyfél kiválasztása</option>';
+    customers.forEach(customer => {
+      const option = document.createElement('option');
+      option.value = customer.id;
+      option.textContent = customer.company_name || customer.name || 'Névtelen ügyfél';
+      maintenanceCustomer.append(option);
+    });
+    if (selected) maintenanceCustomer.value = selected;
+  }
+
+  function renderMaintenance() {
+    if (!maintenanceList) return;
+    const query = (maintenanceSearch?.value || '').trim().toLocaleLowerCase('hu-HU');
+    const filtered = maintenanceItems.filter(item =>
+      [item.customer_name, item.manufacturer, item.model, item.serial_number, item.notes]
+        .filter(Boolean).join(' ').toLocaleLowerCase('hu-HU').includes(query)
+    );
+    maintenanceList.innerHTML = '';
+    if (!filtered.length) {
+      maintenanceList.textContent = 'Még nincs rögzített klímaberendezés.';
+      return;
+    }
+    filtered.forEach(item => {
+      const row = document.createElement('article');
+      row.className = 'maintenance-card';
+      const info = document.createElement('div');
+      const title = document.createElement('strong');
+      title.textContent = [item.manufacturer, item.model].filter(Boolean).join(' ') || 'Klímaberendezés';
+      const detail = document.createElement('p');
+      detail.textContent = [item.customer_name, item.serial_number ? 'Gyári szám: ' + item.serial_number : '', item.installed_on ? 'Telepítve: ' + item.installed_on : ''].filter(Boolean).join(' · ');
+      const due = document.createElement('p');
+      due.className = 'maintenance-due';
+      const today = new Date().toISOString().slice(0,10);
+      const days = item.next_service_on ? Math.ceil((Date.parse(item.next_service_on + 'T00:00:00Z') - Date.parse(today + 'T00:00:00Z')) / 86400000) : null;
+      due.textContent = item.next_service_on
+        ? (days < 0 ? 'Lejárt karbantartás: ' : days <= 30 ? 'Hamarosan esedékes: ' : 'Következő karbantartás: ') + item.next_service_on
+        : 'Nincs megadva következő karbantartási dátum';
+      if (days !== null && days < 0) due.dataset.state = 'overdue';
+      else if (days !== null && days <= 30) due.dataset.state = 'soon';
+      const note = document.createElement('p');
+      note.className = 'muted';
+      note.textContent = [item.last_service_on ? 'Utolsó karbantartás: ' + item.last_service_on : '', item.notes || ''].filter(Boolean).join(' · ');
+      info.append(title, detail, due, note);
+      const actions = document.createElement('div');
+      actions.className = 'maintenance-actions';
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.textContent = 'Szerkesztés';
+      edit.addEventListener('click', () => editMaintenance(item));
+      const done = document.createElement('button');
+      done.type = 'button';
+      done.textContent = 'Karbantartás elvégezve';
+      done.addEventListener('click', async () => {
+        const date = new Date().toISOString().slice(0,10);
+        try {
+          await api('/api/maintenance/' + encodeURIComponent(item.id), {
+            method: 'PUT',
+            body: JSON.stringify({...item, last_service_on: date, next_service_on: addMonthsToDate(date, 6)})
+          });
+          await loadMaintenance();
+        } catch (error) { showMessage(maintenanceMessage, error.message, 'error'); }
+      });
+      actions.append(edit, done);
+      row.append(info, actions);
+      maintenanceList.append(row);
+    });
+  }
+
+  async function loadMaintenance() {
+    if (!maintenanceList) return;
+    try {
+      const result = await api('/api/maintenance');
+      maintenanceItems = result.items || [];
+      populateMaintenanceCustomers(maintenanceCustomer?.value || '');
+      renderMaintenance();
+      clearMessage(maintenanceMessage);
+    } catch (error) {
+      showMessage(maintenanceMessage, error.message, 'error');
+    }
+  }
+
+  function editMaintenance(item) {
+    maintenanceForm.reset();
+    if (maintenanceNextService) delete maintenanceNextService.dataset.manual;
+    Object.entries(item).forEach(([key, value]) => {
+      const field = maintenanceForm.elements.namedItem(key);
+      if (field && !['customer_name'].includes(key)) field.value = value ?? '';
+    });
+    populateMaintenanceCustomers(item.customer_id);
+    $('maintenanceFormTitle').textContent = 'Klímaberendezés szerkesztése';
+    $('saveMaintenanceButton').textContent = 'Módosítások mentése';
+    maintenanceFormPanel.hidden = false;
+    maintenanceFormPanel.scrollIntoView({behavior:'smooth', block:'start'});
+  }
+
+  $('newMaintenanceButton')?.addEventListener('click', () => {
+    maintenanceForm.reset();
+    maintenanceForm.elements.namedItem('id').value = '';
+    if (maintenanceNextService) delete maintenanceNextService.dataset.manual;
+    populateMaintenanceCustomers();
+    $('maintenanceFormTitle').textContent = 'Új klímaberendezés';
+    $('saveMaintenanceButton').textContent = 'Berendezés mentése';
+    maintenanceFormPanel.hidden = false;
+    clearMessage($('maintenanceFormMessage'));
+  });
+  $('cancelMaintenanceButton')?.addEventListener('click', () => {
+    maintenanceFormPanel.hidden = true;
+    maintenanceForm.reset();
+  });
+  maintenanceSearch?.addEventListener('input', renderMaintenance);
+  maintenanceLastService?.addEventListener('change', () => {
+    if (maintenanceLastService.value && maintenanceNextService && !maintenanceNextService.dataset.manual) {
+      maintenanceNextService.value = addMonthsToDate(maintenanceLastService.value, 6);
+    }
+  });
+  maintenanceNextService?.addEventListener('input', () => { maintenanceNextService.dataset.manual = '1'; });
+  if (maintenanceForm) maintenanceForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    const formData = new FormData(maintenanceForm);
+    const id = String(formData.get('id') || '');
+    const lastService = String(formData.get('last_service_on') || '');
+    const installedOn = String(formData.get('installed_on') || '');
+    const scheduleBase = lastService || installedOn;
+    const payload = {
+      customer_id: String(formData.get('customer_id') || ''),
+      equipment_type: 'klima',
+      manufacturer: String(formData.get('manufacturer') || '').trim(),
+      model: String(formData.get('model') || '').trim(),
+      serial_number: String(formData.get('serial_number') || '').trim(),
+      installed_on: installedOn || null,
+      last_service_on: lastService || null,
+      next_service_on: String(formData.get('next_service_on') || '') || (scheduleBase ? addMonthsToDate(scheduleBase, 6) : null),
+      notes: String(formData.get('notes') || '').trim()
+    };
+    try {
+      const result = await api(id ? '/api/maintenance/' + encodeURIComponent(id) : '/api/maintenance', {
+        method: id ? 'PUT' : 'POST',
+        body: JSON.stringify(payload)
+      });
+      showMessage($('maintenanceFormMessage'), id ? 'Klímaberendezés módosítva.' : 'Klímaberendezés elmentve.', 'success');
+      maintenanceFormPanel.hidden = true;
+      maintenanceForm.reset();
+      if (maintenanceNextService) delete maintenanceNextService.dataset.manual;
+      await loadMaintenance();
+    } catch (error) {
+      showMessage($('maintenanceFormMessage'), error.message, 'error');
     }
   });
 

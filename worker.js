@@ -362,6 +362,96 @@ export default {
         }, 200, cors);
       }
 
+
+      // Klímaberendezések és karbantartási időpontok
+      if (url.pathname === "/api/maintenance" && request.method === "GET") {
+        const result = await env.DB.prepare(`
+          SELECT maintenance_records.*, COALESCE(customers.company_name, customers.name) AS customer_name
+          FROM maintenance_records
+          INNER JOIN customers ON customers.id = maintenance_records.customer_id
+          WHERE customers.deleted_at IS NULL
+          ORDER BY CASE WHEN maintenance_records.next_service_on IS NULL THEN 1 ELSE 0 END,
+                   maintenance_records.next_service_on ASC,
+                   maintenance_records.created_at DESC
+          LIMIT 500
+        `).all();
+        return json({ items: result.results || [] }, 200, cors);
+      }
+
+      if (url.pathname === "/api/maintenance" && request.method === "POST") {
+        const data = await readBody(request) || {};
+        const customerId = String(data.customer_id || "").trim();
+        const customer = await env.DB.prepare("SELECT id FROM customers WHERE id = ? AND deleted_at IS NULL").bind(customerId).first();
+        if (!customer) return json({ error: "Válassz egy létező ügyfelet." }, 400, cors);
+        const installed = String(data.installed_on || "").trim() || null;
+        const lastService = String(data.last_service_on || "").trim() || null;
+        let nextService = String(data.next_service_on || "").trim() || null;
+        if (installed && !/^\d{4}-\d{2}-\d{2}$/.test(installed)) return json({error:"Érvénytelen telepítési dátum."},400,cors);
+        if (lastService && !/^\d{4}-\d{2}-\d{2}$/.test(lastService)) return json({error:"Érvénytelen utolsó karbantartási dátum."},400,cors);
+        if (nextService && !/^\d{4}-\d{2}-\d{2}$/.test(nextService)) return json({error:"Érvénytelen következő karbantartási dátum."},400,cors);
+        if (!nextService && (lastService || installed)) {
+          const [y,m,d] = (lastService || installed).split("-").map(Number);
+          const monthIndex = m - 1 + 6;
+          const targetYear = y + Math.floor(monthIndex / 12);
+          const targetMonth = monthIndex % 12;
+          const lastDay = new Date(Date.UTC(targetYear,targetMonth+1,0)).getUTCDate();
+          nextService = new Date(Date.UTC(targetYear,targetMonth,Math.min(d,lastDay))).toISOString().slice(0,10);
+        }
+        const id = crypto.randomUUID();
+        await env.DB.prepare(`
+          INSERT INTO maintenance_records
+            (id, customer_id, equipment_type, manufacturer, model, serial_number, installed_on, last_service_on, next_service_on, reminder_status, notes, created_at, updated_at)
+          VALUES (?, ?, 'klima', ?, ?, ?, ?, ?, ?, 'active', ?, datetime('now'), datetime('now'))
+        `).bind(id, customerId,
+          String(data.manufacturer || "").trim().slice(0,100) || null,
+          String(data.model || "").trim().slice(0,150) || null,
+          String(data.serial_number || "").trim().slice(0,150) || null,
+          installed, lastService, nextService,
+          String(data.notes || "").trim().slice(0,3000) || null
+        ).run();
+        return json({ success: true, id }, 201, cors);
+      }
+
+      const maintenanceMatch = url.pathname.match(/^\/api\/maintenance\/([^/]+)$/);
+      if (maintenanceMatch && request.method === "PUT") {
+        const id = maintenanceMatch[1];
+        const data = await readBody(request) || {};
+        const existing = await env.DB.prepare("SELECT id FROM maintenance_records WHERE id = ?").bind(id).first();
+        if (!existing) return json({error:"A berendezés nem található."},404,cors);
+        const customerId = String(data.customer_id || "").trim();
+        const customer = await env.DB.prepare("SELECT id FROM customers WHERE id = ? AND deleted_at IS NULL").bind(customerId).first();
+        if (!customer) return json({error:"Válassz egy létező ügyfelet."},400,cors);
+        const installed = String(data.installed_on || "").trim() || null;
+        const lastService = String(data.last_service_on || "").trim() || null;
+        let nextService = String(data.next_service_on || "").trim() || null;
+        if ((installed && !/^\d{4}-\d{2}-\d{2}$/.test(installed)) ||
+            (lastService && !/^\d{4}-\d{2}-\d{2}$/.test(lastService)) ||
+            (nextService && !/^\d{4}-\d{2}-\d{2}$/.test(nextService))) {
+          return json({error:"Érvénytelen dátumformátum."},400,cors);
+        }
+        if (!nextService && (lastService || installed)) {
+          const [y,m,d] = (lastService || installed).split("-").map(Number);
+          const monthIndex = m - 1 + 6;
+          const targetYear = y + Math.floor(monthIndex / 12);
+          const targetMonth = monthIndex % 12;
+          const lastDay = new Date(Date.UTC(targetYear,targetMonth+1,0)).getUTCDate();
+          nextService = new Date(Date.UTC(targetYear,targetMonth,Math.min(d,lastDay))).toISOString().slice(0,10);
+        }
+        await env.DB.prepare(`
+          UPDATE maintenance_records
+          SET customer_id=?, manufacturer=?, model=?, serial_number=?, installed_on=?,
+              last_service_on=?, next_service_on=?, notes=?, updated_at=datetime('now')
+          WHERE id=?
+        `).bind(customerId,
+          String(data.manufacturer || "").trim().slice(0,100) || null,
+          String(data.model || "").trim().slice(0,150) || null,
+          String(data.serial_number || "").trim().slice(0,150) || null,
+          installed, lastService, nextService,
+          String(data.notes || "").trim().slice(0,3000) || null, id
+        ).run();
+        return json({success:true},200,cors);
+      }
+
       // Pénzügyi áttekintő: havi vagy éves nézet
       if (url.pathname === "/api/financial" && request.method === "GET") {
         const period = url.searchParams.get("period") === "year" ? "year" : "month";
