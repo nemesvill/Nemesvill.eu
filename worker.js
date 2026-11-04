@@ -1248,6 +1248,50 @@ if (jobMatch && request.method === "DELETE") {
         return json({ success: true, id }, 201, cors);
       }
 
+
+      // Munkalap: költségek és pénzügyi összesítő
+      const jobCostsMatch = url.pathname.match(/^\/api\/jobs\/([^/]+)\/costs$/);
+      if (jobCostsMatch && request.method === "GET") {
+        const jobId = jobCostsMatch[1];
+        const job = await env.DB.prepare("SELECT id FROM jobs WHERE id = ?").bind(jobId).first();
+        if (!job) return json({ error: "A munka nem található." }, 404, cors);
+        const costs = await env.DB.prepare("SELECT * FROM job_cost_items WHERE job_id = ? ORDER BY created_at DESC").bind(jobId).all();
+        const income = await env.DB.prepare("SELECT COALESCE(SUM(gross_amount),0) AS total FROM income_records WHERE job_id = ?").bind(jobId).first();
+        const expenses = await env.DB.prepare("SELECT COALESCE(SUM(gross_amount),0) AS total FROM expenses WHERE job_id = ?").bind(jobId).first();
+        const directCost = (costs.results || []).reduce((sum, item) => sum + Math.round(Number(item.quantity || 0) * Number(item.unit_net_cost || 0)), 0);
+        const otherExpenses = Number(expenses?.total || 0);
+        const incomeTotal = Number(income?.total || 0);
+        return json({ items: costs.results || [], totals: { direct_cost: directCost, other_expenses: otherExpenses, total_cost: directCost + otherExpenses, income: incomeTotal, result: incomeTotal - directCost - otherExpenses }, tax_mode: "AAM" }, 200, cors);
+      }
+
+      if (jobCostsMatch && request.method === "POST") {
+        const jobId = jobCostsMatch[1];
+        const job = await env.DB.prepare("SELECT id FROM jobs WHERE id = ?").bind(jobId).first();
+        if (!job) return json({ error: "A munka nem található." }, 404, cors);
+        const data = await readBody(request) || {};
+        const allowedTypes = ["material", "labor", "travel", "other"];
+        const costType = data.cost_type || "material";
+        const description = String(data.description || "").trim().slice(0, 500);
+        const quantity = Number(data.quantity ?? 1);
+        const unitCost = Number(data.unit_net_cost ?? 0);
+        if (!allowedTypes.includes(costType)) return json({ error: "Érvénytelen költségtípus." }, 400, cors);
+        if (!description) return json({ error: "A megnevezés kötelező." }, 400, cors);
+        if (!Number.isFinite(quantity) || quantity <= 0 || quantity > 1000000) return json({ error: "Érvénytelen mennyiség." }, 400, cors);
+        if (!Number.isSafeInteger(unitCost) || unitCost < 0) return json({ error: "Az egységköltség nulla vagy pozitív egész forint lehet." }, 400, cors);
+        const unit = String(data.unit || "db").trim().slice(0, 30) || "db";
+        const id = crypto.randomUUID();
+        await env.DB.prepare("INSERT INTO job_cost_items (id, job_id, cost_type, description, quantity, unit, unit_net_cost, vat_rate) VALUES (?, ?, ?, ?, ?, ?, ?, 0)")
+          .bind(id, jobId, costType, description, quantity, unit, unitCost).run();
+        return json({ success: true, id, line_total: Math.round(quantity * unitCost), tax_mode: "AAM" }, 201, cors);
+      }
+
+      const jobCostItemMatch = url.pathname.match(/^\/api\/job-cost-items\/([^/]+)$/);
+      if (jobCostItemMatch && request.method === "DELETE") {
+        const result = await env.DB.prepare("DELETE FROM job_cost_items WHERE id = ?").bind(jobCostItemMatch[1]).run();
+        if (!result.meta?.changes) return json({ error: "A költségtétel nem található." }, 404, cors);
+        return json({ success: true }, 200, cors);
+      }
+
       return json(
         { error: "Ismeretlen végpont." },
         404,
