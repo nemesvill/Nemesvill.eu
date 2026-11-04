@@ -81,6 +81,8 @@
     loadCustomers();
     loadLeads();
     loadJobs();
+    loadFinancial();
+    loadExpenses();
     loadQuotes();
     checkDatabase();
   }
@@ -1687,6 +1689,36 @@ if (newJobButton) {
       showMessage(quoteFormMessage, error.message, 'error');
     }
   });
+
+  // PÉNZÜGYI ÁTTEKINTŐ ÉS KIADÁSOK
+  const financialMonth=$('financialMonth'), financialSummary=$('financialSummary'), financialDetails=$('financialDetails'), financialMessage=$('financialMessage');
+  const expenseForm=$('expenseForm'), expenseList=$('expenseList'), expenseMessage=$('expenseMessage');
+  const money=value=>new Intl.NumberFormat('hu-HU',{style:'currency',currency:'HUF',maximumFractionDigits:0}).format(Number(value||0));
+  async function loadFinancial(){
+    if(!financialMonth||!financialSummary)return;
+    const month=financialMonth.value||new Date().toISOString().slice(0,7);financialMonth.value=month;
+    showMessage(financialMessage,'Pénzügyi adatok betöltése...');
+    try{
+      const d=await api('/api/financial?month='+encodeURIComponent(month));
+      financialSummary.innerHTML='';
+      [['Kiállított bevétel',d.income.invoiced],['Beérkezett pénz',d.income.received],['Kintlévőség',d.income.receivable],['Nyilvántartott kiadás',d.expenses.recorded],['Kifizetett kiadás',d.expenses.paid],['Fizetetlen kiadás',d.expenses.unpaid]].forEach(([label,value])=>{const card=document.createElement('article');card.className='financial-card';const l=document.createElement('span');l.textContent=label;const v=document.createElement('strong');v.textContent=money(value);card.append(l,v);financialSummary.append(card);});
+      financialDetails.innerHTML='<h3>Munkákhoz rögzített közvetlen költségek</h3>';
+      [['Anyagköltség',d.job_costs.material],['Munkadíj',d.job_costs.labor],['Kiszállás',d.job_costs.travel],['Egyéb',d.job_costs.other]].forEach(([l,v])=>{const p=document.createElement('p');p.textContent=l+': '+money(v);financialDetails.append(p);});
+      const note=document.createElement('p');note.className='financial-note';note.textContent='A közvetlen munkaköltségek külön szerepelnek, nem adjuk hozzá még egyszer a kiadásokhoz. Régi, ismeretlen fizetési állapotú kiadások: '+money(d.expenses.unknown_paid)+'.';financialDetails.append(note);clearMessage(financialMessage);
+    }catch(e){showMessage(financialMessage,e.message,'error');}
+  }
+  async function loadExpenses(){
+    if(!expenseList)return;
+    try{const d=await api('/api/expenses');expenseList.innerHTML='';
+      (d.items||[]).forEach(item=>{const row=document.createElement('div');row.className='expense-row';const info=document.createElement('div');const title=document.createElement('strong');title.textContent=item.expense_date+' · '+item.category+' · '+item.description;const meta=document.createElement('p');meta.className='muted';meta.textContent=[money(item.gross_amount),item.supplier,item.document_ref,item.job_number?'Munka: '+item.job_number:'Általános',item.paid===1?'Fizetve: '+item.paid_date:item.paid===0?'Nem fizetett':'Régi tétel – státusz ismeretlen'].filter(Boolean).join(' · ');info.append(title,meta);const actions=document.createElement('div');actions.className='expense-actions';
+        if(item.paid!==1){const pay=document.createElement('button');pay.type='button';pay.textContent='Fizetettnek jelöl';pay.addEventListener('click',async()=>{const date=prompt('Mikor fizetted ki? (ÉÉÉÉ-HH-NN)',new Date().toISOString().slice(0,10));if(date===null)return;if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){alert('Hibás dátumformátum.');return;}try{await api('/api/expenses/'+encodeURIComponent(item.id),{method:'PUT',body:JSON.stringify({paid:true,paid_date:date})});await Promise.all([loadExpenses(),loadFinancial()]);}catch(e){alert(e.message);}});actions.append(pay);}
+        const del=document.createElement('button');del.type='button';del.className='secondary';del.textContent='Törlés';del.addEventListener('click',async()=>{if(!confirm('Biztosan törlöd ezt a kiadást?'))return;try{await api('/api/expenses/'+encodeURIComponent(item.id),{method:'DELETE'});await Promise.all([loadExpenses(),loadFinancial()]);}catch(e){alert(e.message);}});actions.append(del);row.append(info,actions);expenseList.append(row);});
+      if(!(d.items||[]).length)expenseList.textContent='Még nincs rögzített kiadás.';
+    }catch(e){showMessage(expenseMessage,e.message,'error');}
+  }
+  const expensePaid=expenseForm?.elements.namedItem('paid'), expensePaidDate=expenseForm?.elements.namedItem('paid_date');
+  if(expenseForm){expenseForm.elements.namedItem('expense_date').value=new Date().toISOString().slice(0,10);expensePaid.addEventListener('change',()=>{expensePaidDate.disabled=!expensePaid.checked;if(expensePaid.checked&&!expensePaidDate.value)expensePaidDate.value=new Date().toISOString().slice(0,10);});expenseForm.addEventListener('submit',async event=>{event.preventDefault();const p=Object.fromEntries(new FormData(expenseForm).entries());p.gross_amount=Number(p.gross_amount);p.paid=expensePaid.checked;p.paid_date=p.paid?expensePaidDate.value:null;p.job_id=p.job_id||null;try{await api('/api/expenses',{method:'POST',body:JSON.stringify(p)});expenseForm.reset();expenseForm.elements.namedItem('expense_date').value=new Date().toISOString().slice(0,10);expensePaidDate.disabled=true;showMessage(expenseMessage,'Kiadás elmentve.','success');await Promise.all([loadExpenses(),loadFinancial()]);}catch(e){showMessage(expenseMessage,e.message,'error');}});}
+  $('refreshFinancialButton')?.addEventListener('click',loadFinancial);financialMonth?.addEventListener('change',loadFinancial);
 
   // INDÍTÁS
   checkSession();
