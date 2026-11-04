@@ -1801,6 +1801,7 @@ if (newJobButton) {
 
   function editMaintenance(item) {
     maintenanceForm.reset();
+    if (maintenanceNextService) delete maintenanceNextService.dataset.manual;
     Object.entries(item).forEach(([key, value]) => {
       const field = maintenanceForm.elements.namedItem(key);
       if (field && !['customer_name'].includes(key)) field.value = value ?? '';
@@ -1815,6 +1816,7 @@ if (newJobButton) {
   $('newMaintenanceButton')?.addEventListener('click', () => {
     maintenanceForm.reset();
     maintenanceForm.elements.namedItem('id').value = '';
+    if (maintenanceNextService) delete maintenanceNextService.dataset.manual;
     populateMaintenanceCustomers();
     $('maintenanceFormTitle').textContent = 'Új klímaberendezés';
     $('saveMaintenanceButton').textContent = 'Berendezés mentése';
@@ -1837,15 +1839,17 @@ if (newJobButton) {
     const formData = new FormData(maintenanceForm);
     const id = String(formData.get('id') || '');
     const lastService = String(formData.get('last_service_on') || '');
+    const installedOn = String(formData.get('installed_on') || '');
+    const scheduleBase = lastService || installedOn;
     const payload = {
       customer_id: String(formData.get('customer_id') || ''),
       equipment_type: 'klima',
       manufacturer: String(formData.get('manufacturer') || '').trim(),
       model: String(formData.get('model') || '').trim(),
       serial_number: String(formData.get('serial_number') || '').trim(),
-      installed_on: String(formData.get('installed_on') || '') || null,
+      installed_on: installedOn || null,
       last_service_on: lastService || null,
-      next_service_on: String(formData.get('next_service_on') || '') || (lastService ? addMonthsToDate(lastService, 6) : null),
+      next_service_on: String(formData.get('next_service_on') || '') || (scheduleBase ? addMonthsToDate(scheduleBase, 6) : null),
       notes: String(formData.get('notes') || '').trim()
     };
     try {
