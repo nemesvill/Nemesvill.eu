@@ -1382,7 +1382,7 @@ if (jobMatch && request.method === "DELETE") {
 
 
       // Munkához csatolt fájlok – privát R2 tárolás
-      const jobAttachmentsMatch = url.pathname.match(/^\\/api\\/jobs\\/([^/]+)\\/attachments$/);
+      const jobAttachmentsMatch = url.pathname.match(/^\/api\/jobs\/([^/]+)\/attachments$/);
       if (jobAttachmentsMatch && request.method === "GET") {
         const jobId = jobAttachmentsMatch[1];
         const job = await env.DB.prepare("SELECT id FROM jobs WHERE id = ?").bind(jobId).first();
@@ -1404,7 +1404,7 @@ if (jobMatch && request.method === "DELETE") {
         if (file.size > 10 * 1024 * 1024) return json({ error: "A fájl legfeljebb 10 MB lehet." }, 400, cors);
         const allowedTypes = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
         if (!allowedTypes.includes(file.type)) return json({ error: "Csak JPG, PNG, WebP vagy PDF fájl tölthető fel." }, 400, cors);
-        const safeName = String(file.name || "csatolmany").replace(/[\\\\/\\r\\n\\0]/g, "_").slice(0, 180);
+        const safeName = String(file.name || "csatolmany").replace(/[\\/\r\n\0]/g, "_").slice(0, 180);
         const id = crypto.randomUUID();
         const key = "jobs/" + jobId + "/" + id;
         await env.FILES.put(key, file.stream(), {
@@ -1422,7 +1422,7 @@ if (jobMatch && request.method === "DELETE") {
         return json({ success: true, id, file_name: safeName }, 201, cors);
       }
 
-      const attachmentMatch = url.pathname.match(/^\\/api\\/attachments\\/([^/]+)$/);
+      const attachmentMatch = url.pathname.match(/^\/api\/attachments\/([^/]+)$/);
       if (attachmentMatch && request.method === "GET") {
         if (!env.FILES) return json({ error: "A fájltároló nincs konfigurálva." }, 500, cors);
         const attachment = await env.DB.prepare("SELECT * FROM attachments WHERE id = ?")
@@ -1430,7 +1430,7 @@ if (jobMatch && request.method === "DELETE") {
         if (!attachment || !attachment.job_id) return json({ error: "A csatolmány nem található." }, 404, cors);
         const object = await env.FILES.get(attachment.object_key);
         if (!object) return json({ error: "A fájl nem található a tárhelyen." }, 404, cors);
-        const safeName = attachment.file_name.replace(/["\\\\\\r\\n]/g, "_");
+        const safeName = attachment.file_name.replace(/["\\\r\n]/g, "_");
         return new Response(object.body, {
           status: 200,
           headers: {
