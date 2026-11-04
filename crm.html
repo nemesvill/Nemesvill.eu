@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Nemesvill CRM – Ügyviteli rendszer</title>
   <link rel="stylesheet" href="crm.css">
- <script src="crm.js?v=20261104-19" defer></script>
+ <script src="crm.js?v=20261104-20" defer></script>
 </head>
 <body>
   <main class="shell">
@@ -376,6 +376,40 @@
 </section>
 
       
+
+
+      <!-- KLÍMAKARBANTARTÁS -->
+      <section class="panel coming-panel" id="maintenanceSection">
+        <div class="eyebrow">ÜGYFÉL UTÓKÖVETÉS</div>
+        <h2>Klímakarbantartás</h2>
+        <p class="muted">Klímaberendezések és a következő karbantartások nyilvántartása. Alapértelmezett ciklus: 6 hónap.</p>
+        <div class="customer-toolbar">
+          <input type="search" id="maintenanceSearch" placeholder="Keresés ügyfél, gyártó, modell vagy gyári szám alapján…" aria-label="Karbantartások keresése">
+          <button type="button" id="newMaintenanceButton">+ Új berendezés</button>
+        </div>
+        <div id="maintenanceFormPanel" hidden>
+          <h3 id="maintenanceFormTitle">Új klímaberendezés</h3>
+          <form id="maintenanceForm" class="maintenance-form">
+            <input type="hidden" name="id">
+            <label>Ügyfél *<select name="customer_id" id="maintenanceCustomer" required><option value="">Ügyfél kiválasztása</option></select></label>
+            <label>Gyártó<input name="manufacturer" maxlength="100" placeholder="Pl. Midea, Gree, Hamilton"></label>
+            <label>Típus / modell<input name="model" maxlength="150"></label>
+            <label>Gyári szám<input name="serial_number" maxlength="150"></label>
+            <label>Telepítés dátuma<input name="installed_on" type="date"></label>
+            <label>Utolsó karbantartás dátuma<input name="last_service_on" id="maintenanceLastService" type="date"></label>
+            <label>Következő karbantartás<input name="next_service_on" id="maintenanceNextService" type="date"></label>
+            <p class="muted maintenance-hint">A következő dátum alapértelmezés szerint az utolsó karbantartástól számított 6 hónap.</p>
+            <label class="maintenance-wide">Megjegyzés<textarea name="notes" rows="3" maxlength="3000"></textarea></label>
+            <div class="customer-actions maintenance-wide">
+              <button type="submit" id="saveMaintenanceButton">Berendezés mentése</button>
+              <button type="button" id="cancelMaintenanceButton" class="secondary">Mégse</button>
+            </div>
+            <p id="maintenanceFormMessage" class="message maintenance-wide" role="status"></p>
+          </form>
+        </div>
+        <div id="maintenanceMessage" class="message" role="status"></div>
+        <div id="maintenanceList"></div>
+      </section>
 
 <!-- ÁRAJÁNLATOK -->
 <section class="panel coming-panel" id="quotesSection">
