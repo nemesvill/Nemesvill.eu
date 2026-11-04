@@ -665,6 +665,76 @@ showMessage(
     });
   }
 
+
+  async function toggleJobSheet(job, card) {
+    const old = card.querySelector('.job-sheet-panel');
+    if (old) { old.remove(); return; }
+    const panel = document.createElement('section');
+    panel.className = 'job-sheet-panel';
+    panel.innerHTML = '<h4>Munkalap és költségek</h4><p class="muted">Betöltés...</p>';
+    card.append(panel);
+    try {
+      const data = await api('/api/jobs/' + encodeURIComponent(job.id) + '/costs');
+      panel.innerHTML = '';
+      const summary = document.createElement('div');
+      summary.className = 'job-sheet-summary';
+      const t = data.totals || {};
+      summary.textContent = 'Bevétel: ' + formatHuf(t.income) +
+        ' · Közvetlen költség: ' + formatHuf(t.direct_cost) +
+        ' · Egyéb kiadás: ' + formatHuf(t.other_expenses) +
+        ' · Eredmény: ' + formatHuf(t.result);
+      panel.append(summary);
+      const list = document.createElement('div');
+      list.className = 'job-cost-list';
+      (data.items || []).forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'job-cost-row';
+        const label = document.createElement('span');
+        label.textContent = item.description + ' · ' + item.quantity + ' ' + item.unit +
+          ' × ' + formatHuf(item.unit_net_cost) + ' = ' +
+          formatHuf(Number(item.quantity) * Number(item.unit_net_cost));
+        const del = document.createElement('button');
+        del.type = 'button'; del.className = 'secondary'; del.textContent = 'Törlés';
+        del.addEventListener('click', async () => {
+          if (!confirm('Törlöd ezt a költségtételt?')) return;
+          try { await api('/api/job-cost-items/' + encodeURIComponent(item.id), {method:'DELETE'}); await toggleJobSheet(job, card); }
+          catch (e) { alert(e.message); }
+        });
+        row.append(label, del); list.append(row);
+      });
+      if (!(data.items || []).length) list.textContent = 'Még nincs rögzített közvetlen költség.';
+      panel.append(list);
+      const form = document.createElement('form');
+      form.className = 'job-cost-form';
+      form.innerHTML = '<label>Típus<select name="cost_type"><option value="material">Anyag</option><option value="labor">Munkadíj</option><option value="travel">Kiszállás</option><option value="other">Egyéb</option></select></label>' +
+        '<label>Megnevezés<input name="description" required maxlength="500" placeholder="Pl. 3×2,5 mm² vezeték"></label>' +
+        '<label>Mennyiség<input name="quantity" type="number" min="0.001" step="0.001" value="1" required></label>' +
+        '<label>Egység<input name="unit" maxlength="30" value="db"></label>' +
+        '<label>Nettó egységköltség (Ft)<input name="unit_net_cost" type="number" min="0" step="1" value="0" required></label>' +
+        '<button type="submit">Költség mentése</button>';
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+        const fd = new FormData(form);
+        const payload = Object.fromEntries(fd.entries());
+        payload.quantity = Number(payload.quantity);
+        payload.unit_net_cost = Number(payload.unit_net_cost);
+        const submit = form.querySelector('button[type="submit"]');
+        submit.disabled = true;
+        try {
+          await api('/api/jobs/' + encodeURIComponent(job.id) + '/costs', {method:'POST', body:JSON.stringify(payload)});
+          await toggleJobSheet(job, card);
+        } catch (e) { alert(e.message); submit.disabled = false; }
+      });
+      panel.append(form);
+      const note = document.createElement('p');
+      note.className = 'muted';
+      note.textContent = 'Az összesítő a rögzített munkaköltségeket, kiadásokat és bevételeket mutatja. Az AAM mód változatlan.';
+      panel.append(note);
+    } catch (error) {
+      panel.textContent = 'A munkalap betöltése nem sikerült: ' + error.message;
+    }
+  }
+
   // MUNKÁK KEZELÉSE
   function jobStatusLabel(value) {
     const labels = {
@@ -827,7 +897,11 @@ showMessage(
       deleteButton.textContent = 'Törlés';
       deleteButton.addEventListener('click', () => deleteJob(job.id));
 
-      actions.append(editButton, deleteButton);
+      const sheetButton = document.createElement('button');
+      sheetButton.type = 'button';
+      sheetButton.textContent = 'Munkalap / költségek';
+      sheetButton.addEventListener('click', () => toggleJobSheet(job, card));
+      actions.append(editButton, deleteButton, sheetButton);
       card.append(heading, details, date, address, actions);
       jobList.append(card);
     });
