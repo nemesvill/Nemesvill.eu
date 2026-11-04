@@ -228,6 +228,112 @@ function normalizeQuoteItems(items) {
 }
 
 export default {
+  async scheduled(controller, env, ctx) {
+    try {
+      if (!env.DB || !env.RESEND_API_KEY) {
+        console.error("Maintenance email is not configured: DB or RESEND_API_KEY missing.");
+        return;
+      }
+
+      const now = new Date();
+      const timeZone = "Europe/Budapest";
+      const weekday = new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(now);
+      const hour = Number(new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", hourCycle: "h23" }).format(now));
+      if (weekday !== "Mon" || hour !== 8) return;
+
+      const dateParts = new Intl.DateTimeFormat("en-CA", {
+        timeZone, year: "numeric", month: "2-digit", day: "2-digit"
+      }).formatToParts(now);
+      const datePart = type => dateParts.find(part => part.type === type)?.value;
+      const today = datePart("year") + "-" + datePart("month") + "-" + datePart("day");
+      const limitDate = new Date(Date.UTC(
+        Number(datePart("year")), Number(datePart("month")) - 1, Number(datePart("day")) + 30
+      )).toISOString().slice(0, 10);
+
+      const result = await env.DB.prepare(`
+        SELECT maintenance_records.id, maintenance_records.manufacturer,
+               maintenance_records.model, maintenance_records.serial_number,
+               maintenance_records.next_service_on, maintenance_records.notes,
+               COALESCE(customers.company_name, customers.name) AS customer_name,
+               customers.email AS customer_email, customers.phone AS customer_phone
+        FROM maintenance_records
+        INNER JOIN customers ON customers.id = maintenance_records.customer_id
+        WHERE customers.deleted_at IS NULL
+          AND maintenance_records.next_service_on IS NOT NULL
+          AND maintenance_records.next_service_on <= ?
+        ORDER BY maintenance_records.next_service_on ASC, customer_name ASC
+        LIMIT 500
+      `).bind(limitDate).all();
+
+      const items = result.results || [];
+      const overdue = items.filter(item => item.next_service_on < today);
+      const upcoming = items.filter(item => item.next_service_on >= today);
+      const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[char]));
+      const dateHu = value => {
+        const parts = String(value || "").split("-");
+        return parts.length === 3 ? parts[2] + "." + parts[1] + "." + parts[0] : String(value || "—");
+      };
+      const rows = items.map(item => {
+        const status = item.next_service_on < today ? "LEJÁRT" : "30 napon belül";
+        const equipment = [item.manufacturer, item.model].filter(Boolean).join(" ") || "Nincs megadva";
+        return `<tr>
+          <td>${escapeHtml(status)}</td>
+          <td>${escapeHtml(dateHu(item.next_service_on))}</td>
+          <td>${escapeHtml(item.customer_name || "—")}</td>
+          <td>${escapeHtml(equipment)}</td>
+          <td>${escapeHtml(item.serial_number || "—")}</td>
+          <td>${escapeHtml(item.customer_phone || "—")}</td>
+          <td>${escapeHtml(item.customer_email || "—")}</td>
+        </tr>`;
+      }).join("");
+      const html = `
+        <div style="font-family:Arial,sans-serif;color:#172033;max-width:900px">
+          <h2>Nemesvill – heti klímakarbantartási jelentés</h2>
+          <p>Dátum: <strong>${dateHu(today)}</strong></p>
+          <p>Lejárt: <strong>${overdue.length}</strong> | 30 napon belül esedékes: <strong>${upcoming.length}</strong></p>
+          ${items.length ? `<table cellpadding="8" cellspacing="0" border="1" style="border-collapse:collapse;border-color:#ddd;width:100%">
+            <thead><tr><th>Állapot</th><th>Esedékesség</th><th>Ügyfél</th><th>Berendezés</th><th>Gyári szám</th><th>Telefon</th><th>E-mail</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>` : "<p>Jelenleg nincs lejárt vagy a következő 30 napban esedékes klímakarbantartás.</p>"}
+          <p style="color:#667085;font-size:12px">Automatikus jelentés a Nemesvill CRM rendszerből.</p>
+        </div>`;
+      const textRows = items.map(item =>
+        `- ${item.next_service_on < today ? "LEJÁRT" : "30 napon belül"} | ${dateHu(item.next_service_on)} | ${item.customer_name || "—"} | ${[item.manufacturer, item.model].filter(Boolean).join(" ") || "Nincs megadva"} | ${item.customer_phone || "—"} | ${item.customer_email || "—"}`
+      );
+      const textBody = [
+        "Nemesvill – heti klímakarbantartási jelentés",
+        "Dátum: " + dateHu(today),
+        "Lejárt: " + overdue.length + " | 30 napon belül esedékes: " + upcoming.length,
+        "",
+        ...(textRows.length ? textRows : ["Jelenleg nincs lejárt vagy a következő 30 napban esedékes klímakarbantartás."])
+      ].join("\n");
+
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + env.RESEND_API_KEY,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          from: "Nemesvill CRM <ertesito@send.nemesvill.eu>",
+          to: ["nemesvillany@gmail.com"],
+          subject: `Nemesvill – klímakarbantartások: ${overdue.length} lejárt, ${upcoming.length} esedékes`,
+          html,
+          text: textBody
+        })
+      });
+      if (!response.ok) {
+        console.error("Resend email error:", response.status, await response.text());
+        return;
+      }
+      console.log("Maintenance report email sent:", await response.text());
+    } catch (error) {
+      console.error("Maintenance scheduled task failed:", error?.message || String(error));
+    }
+  },
+
   async fetch(request, env) {
     const url = new URL(request.url);
     const origin = request.headers.get("Origin") || "";
