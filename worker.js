@@ -1317,8 +1317,10 @@ if (jobMatch && request.method === "DELETE") {
         if (!Number.isSafeInteger(amount) || amount <= 0) return json({ error: "Az összeg pozitív egész forint legyen." }, 400, cors);
         const id = crypto.randomUUID();
         const paid = data.paid ? 1 : 0;
-        await env.DB.prepare("INSERT INTO income_records (id, job_id, customer_id, income_date, description, net_amount, vat_amount, gross_amount, invoice_number, paid) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?)")
-          .bind(id, jobId, job.customer_id, incomeDate, description, amount, amount, invoiceNumber, paid).run();
+        const paidDate = paid ? String(data.paid_date || "").trim() : null;
+        if (paid && !/^\\d{4}-\\d{2}-\\d{2}$/.test(paidDate || "")) return json({ error: "Fizetett bevételnél a tényleges fizetési dátum kötelező." }, 400, cors);
+        await env.DB.prepare("INSERT INTO income_records (id, job_id, customer_id, income_date, description, net_amount, vat_amount, gross_amount, invoice_number, paid, paid_date) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)")
+          .bind(id, jobId, job.customer_id, incomeDate, description, amount, amount, invoiceNumber, paid, paidDate).run();
         return json({ success: true, id, tax_mode: "AAM" }, 201, cors);
       }
 
@@ -1329,8 +1331,10 @@ if (jobMatch && request.method === "DELETE") {
         if (!existing) return json({ error: "A bevételi tétel nem található." }, 404, cors);
         const invoiceNumber = String(data.invoice_number || "").trim().slice(0, 100) || null;
         const paid = data.paid ? 1 : 0;
-        await env.DB.prepare("UPDATE income_records SET invoice_number = ?, paid = ? WHERE id = ?")
-          .bind(invoiceNumber, paid, incomeRecordMatch[1]).run();
+        const paidDate = paid ? String(data.paid_date || "").trim() : null;
+        if (paid && !/^\\d{4}-\\d{2}-\\d{2}$/.test(paidDate || "")) return json({ error: "Fizetett bevételnél a tényleges fizetési dátum kötelező." }, 400, cors);
+        await env.DB.prepare("UPDATE income_records SET invoice_number = ?, paid = ?, paid_date = ? WHERE id = ?")
+          .bind(invoiceNumber, paid, paidDate, incomeRecordMatch[1]).run();
         return json({ success: true }, 200, cors);
       }
 
