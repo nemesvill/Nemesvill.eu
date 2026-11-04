@@ -1775,10 +1775,11 @@ if (newJobButton) {
           ['Munkadíj',item.labor_cost],
           ['Egyéb közvetlen költség',Number(item.other_direct_cost||0)+Number(item.linked_expenses||0)],
           ['Összes rögzített költség',item.total_cost],
-          ['Realizált eredmény',item.realized_result]
+          ['Számlázás szerinti eredmény',item.invoiced_result],
+          ['Pénzforgalmi eredmény',item.cashflow_result]
         ];
         values.forEach(([label,value])=>{const cell=document.createElement('div');cell.className='profitability-value';const name=document.createElement('span');name.textContent=label;const amount=document.createElement('strong');amount.textContent=money(value);cell.append(name,amount);grid.append(cell);});
-        const note=document.createElement('p');note.className='financial-note';note.textContent='A realizált eredmény itt a számlázott bevétel mínusz a rögzített közvetlen költségek és a munkához kapcsolt kiadások. A pénzforgalmi beérkezés külön szerepel.';
+        const note=document.createElement('p');note.className='financial-note';note.textContent='Számlázás szerinti eredmény: számlázott bevétel mínusz minden rögzített közvetlen költség és munkához kapcsolt kiadás. Pénzforgalmi eredmény: ténylegesen beérkezett pénz mínusz a munkához kapcsolt, kifizetett kiadások. A közvetlen munkaköltség-tételekhez nincs külön fizetési dátum, ezért azok nem részei a pénzforgalmi eredménynek.';
         card.append(grid,note);profitabilityList.append(card);
       });
       if(!(data.items||[]).length)profitabilityList.textContent='Még nincs megjeleníthető munka.';
