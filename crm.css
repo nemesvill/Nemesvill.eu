@@ -44,3 +44,18 @@
 .profitability-value span{display:block;color:var(--muted);font-size:.78rem}
 .profitability-value strong{display:block;margin-top:5px}
 @media(max-width:620px){.profitability-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+
+.maintenance-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.maintenance-form label{display:grid;gap:5px}
+.maintenance-form textarea{width:100%;padding:12px;border:1px solid #496174;border-radius:10px;background:#09131e;color:var(--text);font:inherit}
+.maintenance-wide{grid-column:1/-1}
+.maintenance-hint{grid-column:1/-1;margin:0;font-size:.88rem}
+.maintenance-card{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid var(--line)}
+.maintenance-card p{margin:4px 0}
+.maintenance-due{font-weight:700;color:var(--accent)}
+.maintenance-due[data-state="overdue"]{color:#ff9b83}
+.maintenance-due[data-state="soon"]{color:#e6bd72}
+.maintenance-actions{display:flex;gap:8px;flex-wrap:wrap}
+.maintenance-actions button{margin:0}
+@media(max-width:620px){.maintenance-form{grid-template-columns:1fr}.maintenance-card{align-items:flex-start;flex-direction:column}.maintenance-wide{grid-column:auto}}
