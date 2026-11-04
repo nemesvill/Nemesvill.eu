@@ -1404,17 +1404,29 @@ if (jobMatch && request.method === "DELETE") {
         if (file.size > 10 * 1024 * 1024) return json({ error: "A fájl legfeljebb 10 MB lehet." }, 400, cors);
         const allowedTypes = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
         if (!allowedTypes.includes(file.type)) return json({ error: "Csak JPG, PNG, WebP vagy PDF fájl tölthető fel." }, 400, cors);
+
+        // Valódi fájltípus ellenőrzése a tartalom alapján, nem csak a böngésző MIME-adatából.
+        const signature = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+        const startsWith = (...bytes) => bytes.every((value, index) => signature[index] === value);
+        let verifiedType = null;
+        if (startsWith(0xFF, 0xD8, 0xFF)) verifiedType = "image/jpeg";
+        else if (startsWith(0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)) verifiedType = "image/png";
+        else if (startsWith(0x52, 0x49, 0x46, 0x46) && signature[8] === 0x57 && signature[9] === 0x45 && signature[10] === 0x42 && signature[11] === 0x50) verifiedType = "image/webp";
+        else if (startsWith(0x25, 0x50, 0x44, 0x46, 0x2D)) verifiedType = "application/pdf";
+        if (!verifiedType || verifiedType !== file.type) {
+          return json({ error: "A fájl tartalma nem egyezik a kiválasztott fájltípussal. Kérlek, valódi JPG, PNG, WebP vagy PDF fájlt válassz." }, 400, cors);
+        }
         const safeName = String(file.name || "csatolmany").replace(/[\\/\r\n\0]/g, "_").slice(0, 180);
         const id = crypto.randomUUID();
         const key = "jobs/" + jobId + "/" + id;
         await env.FILES.put(key, file.stream(), {
-          httpMetadata: { contentType: file.type },
+          httpMetadata: { contentType: verifiedType },
           customMetadata: { originalName: safeName }
         });
         try {
           await env.DB.prepare(
             "INSERT INTO attachments (id, job_id, object_key, file_name, content_type, file_size, visibility) VALUES (?, ?, ?, ?, ?, ?, 'private')"
-          ).bind(id, jobId, key, safeName, file.type, file.size).run();
+          ).bind(id, jobId, key, safeName, verifiedType, file.size).run();
         } catch (error) {
           await env.FILES.delete(key);
           throw error;
