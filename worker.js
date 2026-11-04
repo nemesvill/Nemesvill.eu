@@ -362,18 +362,34 @@ export default {
         }, 200, cors);
       }
 
-      // Pénzügyi áttekintő: számlázott és tényleges pénzforgalom
+      // Pénzügyi áttekintő: havi vagy éves nézet
       if (url.pathname === "/api/financial" && request.method === "GET") {
-        const month = url.searchParams.get("month") || new Date().toISOString().slice(0,7);
-        if (!/^\d{4}-\d{2}$/.test(month)) return json({error:"Érvénytelen hónap."},400,cors);
-        const start = month + "-01";
-        const end = new Date(Date.UTC(Number(month.slice(0,4)),Number(month.slice(5,7)),1)).toISOString().slice(0,10);
-        const income = await env.DB.prepare("SELECT COALESCE(SUM(CASE WHEN income_date >= ? AND income_date < ? THEN gross_amount ELSE 0 END),0) AS invoiced, COALESCE(SUM(CASE WHEN paid = 1 AND paid_date >= ? AND paid_date < ? THEN gross_amount ELSE 0 END),0) AS received, COALESCE(SUM(CASE WHEN paid = 0 THEN gross_amount ELSE 0 END),0) AS receivable FROM income_records").bind(start,end,start,end).first();
-        const expenses = await env.DB.prepare("SELECT COALESCE(SUM(CASE WHEN expense_date >= ? AND expense_date < ? THEN gross_amount ELSE 0 END),0) AS recorded, COALESCE(SUM(CASE WHEN paid = 1 AND paid_date >= ? AND paid_date < ? THEN gross_amount ELSE 0 END),0) AS paid, COALESCE(SUM(CASE WHEN paid = 0 THEN gross_amount ELSE 0 END),0) AS unpaid, COALESCE(SUM(CASE WHEN paid IS NULL THEN gross_amount ELSE 0 END),0) AS unknown_paid FROM expenses").bind(start,end,start,end).first();
-        const costs = await env.DB.prepare("SELECT cost_type, COALESCE(SUM(ROUND(quantity * unit_net_cost)),0) AS total FROM job_cost_items WHERE substr(created_at,1,7) = ? GROUP BY cost_type").bind(month).all();
-        const jobCosts = {material:0,labor:0,travel:0,other:0};
-        for (const row of costs.results || []) if (Object.prototype.hasOwnProperty.call(jobCosts,row.cost_type)) jobCosts[row.cost_type]=Number(row.total||0);
-        return json({month,income:{invoiced:Number(income?.invoiced||0),received:Number(income?.received||0),receivable:Number(income?.receivable||0)},expenses:{recorded:Number(expenses?.recorded||0),paid:Number(expenses?.paid||0),unpaid:Number(expenses?.unpaid||0),unknown_paid:Number(expenses?.unknown_paid||0)},job_costs:jobCosts,tax_mode:"AAM"},200,cors);
+        const period = url.searchParams.get("period") === "year" ? "year" : "month";
+        const today = new Date().toISOString();
+        const month = url.searchParams.get("month") || today.slice(0,7);
+        const year = url.searchParams.get("year") || today.slice(0,4);
+        if (period === "month" && !/^\d{4}-\d{2}$/.test(month)) return json({error:"Érvénytelen hónap."},400,cors);
+        if (period === "year" && !/^\d{4}$/.test(year)) return json({error:"Érvénytelen év."},400,cors);
+        const start = period === "year" ? year + "-01-01" : month + "-01";
+        const end = period === "year" ? String(Number(year)+1) + "-01-01" : new Date(Date.UTC(Number(month.slice(0,4)),Number(month.slice(5,7)),1)).toISOString().slice(0,10);
+        const income = await env.DB.prepare("SELECT COALESCE(SUM(CASE WHEN income_date >= ? AND income_date < ? THEN gross_amount ELSE 0 END),0) AS invoiced, COALESCE(SUM(CASE WHEN paid=1 AND paid_date >= ? AND paid_date < ? THEN gross_amount ELSE 0 END),0) AS received, COALESCE(SUM(CASE WHEN paid=0 THEN gross_amount ELSE 0 END),0) AS receivable FROM income_records").bind(start,end,start,end).first();
+        const expenses = await env.DB.prepare("SELECT COALESCE(SUM(CASE WHEN expense_date >= ? AND expense_date < ? THEN gross_amount ELSE 0 END),0) AS recorded, COALESCE(SUM(CASE WHEN paid=1 AND paid_date >= ? AND paid_date < ? THEN gross_amount ELSE 0 END),0) AS paid, COALESCE(SUM(CASE WHEN paid=0 THEN gross_amount ELSE 0 END),0) AS unpaid, COALESCE(SUM(CASE WHEN paid IS NULL THEN gross_amount ELSE 0 END),0) AS unknown_paid FROM expenses").bind(start,end,start,end).first();
+        const costPeriod = period === "year" ? year : month;
+        const costFormat = period === "year" ? "substr(created_at,1,4)" : "substr(created_at,1,7)";
+        const costs = await env.DB.prepare("SELECT cost_type, COALESCE(SUM(ROUND(quantity*unit_net_cost)),0) AS total FROM job_cost_items WHERE "+costFormat+"=? GROUP BY cost_type").bind(costPeriod).all();
+        const jobCosts={material:0,labor:0,travel:0,other:0};
+        for(const row of costs.results||[]) if(Object.prototype.hasOwnProperty.call(jobCosts,row.cost_type)) jobCosts[row.cost_type]=Number(row.total||0);
+        const incomeSeries = await env.DB.prepare("SELECT substr(paid_date,1,7) AS period, SUM(gross_amount) AS total FROM income_records WHERE paid=1 AND paid_date>=? AND paid_date<? GROUP BY substr(paid_date,1,7)").bind(start,end).all();
+        const expenseSeries = await env.DB.prepare("SELECT substr(paid_date,1,7) AS period, SUM(gross_amount) AS total FROM expenses WHERE paid=1 AND paid_date>=? AND paid_date<? GROUP BY substr(paid_date,1,7)").bind(start,end).all();
+        const seriesMap={};
+        const count=period==="year"?12:1;
+        for(let i=0;i<count;i++){
+          const key=period==="year"?year+"-"+String(i+1).padStart(2,"0"):month;
+          seriesMap[key]={period:key,received:0,paid:0};
+        }
+        for(const row of incomeSeries.results||[]) if(seriesMap[row.period]) seriesMap[row.period].received=Number(row.total||0);
+        for(const row of expenseSeries.results||[]) if(seriesMap[row.period]) seriesMap[row.period].paid=Number(row.total||0);
+        return json({period,month,year,income:{invoiced:Number(income?.invoiced||0),received:Number(income?.received||0),receivable:Number(income?.receivable||0)},expenses:{recorded:Number(expenses?.recorded||0),paid:Number(expenses?.paid||0),unpaid:Number(expenses?.unpaid||0),unknown_paid:Number(expenses?.unknown_paid||0)},job_costs:jobCosts,series:Object.values(seriesMap),cash_result:Number(income?.received||0)-Number(expenses?.paid||0),tax_mode:"AAM"},200,cors);
       }
 
       // Kiadások listázása és rögzítése
