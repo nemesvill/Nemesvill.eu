@@ -83,6 +83,7 @@
     loadJobs();
     loadFinancial();
     loadExpenses();
+    loadProfitability();
     loadQuotes();
     checkDatabase();
   }
@@ -1749,6 +1750,42 @@ if (newJobButton) {
   const expensePaid=expenseForm?.elements.namedItem('paid'), expensePaidDate=expenseForm?.elements.namedItem('paid_date');
   if(expenseForm){expenseForm.elements.namedItem('expense_date').value=new Date().toISOString().slice(0,10);expensePaid.addEventListener('change',()=>{expensePaidDate.disabled=!expensePaid.checked;if(expensePaid.checked&&!expensePaidDate.value)expensePaidDate.value=new Date().toISOString().slice(0,10);});expenseForm.addEventListener('submit',async event=>{event.preventDefault();const p=Object.fromEntries(new FormData(expenseForm).entries());p.gross_amount=Number(p.gross_amount);p.paid=expensePaid.checked;p.paid_date=p.paid?expensePaidDate.value:null;p.job_id=p.job_id||null;try{await api('/api/expenses',{method:'POST',body:JSON.stringify(p)});expenseForm.reset();expenseForm.elements.namedItem('expense_date').value=new Date().toISOString().slice(0,10);expensePaidDate.disabled=true;showMessage(expenseMessage,'Kiadás elmentve.','success');await Promise.all([loadExpenses(),loadFinancial()]);}catch(e){showMessage(expenseMessage,e.message,'error');}});}
   $('refreshFinancialButton')?.addEventListener('click',loadFinancial);financialMonth?.addEventListener('change',loadFinancial);financialYear?.addEventListener('change',loadFinancial);financialPeriod?.addEventListener('change',loadFinancial);
+
+  // MUNKÁNKÉNTI NYERESÉGESSÉG
+  const profitabilityList=$('profitabilityList'), profitabilityMessage=$('profitabilityMessage');
+  async function loadProfitability(){
+    if(!profitabilityList)return;
+    showMessage(profitabilityMessage,'Munkák pénzügyi adatainak betöltése...');
+    try{
+      const data=await api('/api/profitability');
+      profitabilityList.innerHTML='';
+      (data.items||[]).forEach(item=>{
+        const card=document.createElement('article');card.className='profitability-card';
+        const heading=document.createElement('div');heading.className='profitability-heading';
+        const title=document.createElement('strong');title.textContent=(item.job_number||'')+' · '+(item.title||'Munka');
+        const customer=document.createElement('span');customer.textContent=[item.customer_name,item.status].filter(Boolean).join(' · ');
+        heading.append(title,customer);card.append(heading);
+        const grid=document.createElement('div');grid.className='profitability-grid';
+        const values=[
+          ['Ajánlati érték',item.offer_amount],
+          ['Számlázott összeg',item.invoiced_amount],
+          ['Beérkezett pénz',item.received_amount],
+          ['Fennmaradó tartozás',item.balance_due],
+          ['Anyagköltség',item.material_cost],
+          ['Munkadíj',item.labor_cost],
+          ['Egyéb közvetlen költség',Number(item.other_direct_cost||0)+Number(item.linked_expenses||0)],
+          ['Összes rögzített költség',item.total_cost],
+          ['Realizált eredmény',item.realized_result]
+        ];
+        values.forEach(([label,value])=>{const cell=document.createElement('div');cell.className='profitability-value';const name=document.createElement('span');name.textContent=label;const amount=document.createElement('strong');amount.textContent=money(value);cell.append(name,amount);grid.append(cell);});
+        const note=document.createElement('p');note.className='financial-note';note.textContent='A realizált eredmény itt a számlázott bevétel mínusz a rögzített közvetlen költségek és a munkához kapcsolt kiadások. A pénzforgalmi beérkezés külön szerepel.';
+        card.append(grid,note);profitabilityList.append(card);
+      });
+      if(!(data.items||[]).length)profitabilityList.textContent='Még nincs megjeleníthető munka.';
+      clearMessage(profitabilityMessage);
+    }catch(e){showMessage(profitabilityMessage,e.message,'error');}
+  }
+  $('refreshProfitabilityButton')?.addEventListener('click',loadProfitability);
 
   // INDÍTÁS
   checkSession();
