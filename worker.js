@@ -594,7 +594,7 @@ export default {
           updates.push("notes = ?"); values.push(data.notes === null ? null : String(data.notes).slice(0, 5000));
         }
         if (data.issue_date !== undefined) {
-          if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(data.issue_date || "")) return json({ error: "Érvénytelen kiállítási dátum." }, 400, cors);
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(data.issue_date || "")) return json({ error: "Érvénytelen kiállítási dátum." }, 400, cors);
           updates.push("issue_date = ?"); values.push(data.issue_date);
         }
         if (data.customer_id !== undefined) {
@@ -1381,7 +1381,7 @@ if (jobMatch && request.method === "DELETE") {
         const id = crypto.randomUUID();
         const paid = data.paid ? 1 : 0;
         const paidDate = paid ? String(data.paid_date || "").trim() : null;
-        if (paid && !/^\\d{4}-\\d{2}-\\d{2}$/.test(paidDate || "")) return json({ error: "Fizetett bevételnél a tényleges fizetési dátum kötelező." }, 400, cors);
+        if (paid && !/^\d{4}-\d{2}-\d{2}$/.test(paidDate || "")) return json({ error: "Fizetett bevételnél a tényleges fizetési dátum kötelező." }, 400, cors);
         await env.DB.prepare("INSERT INTO income_records (id, job_id, customer_id, income_date, description, net_amount, vat_amount, gross_amount, invoice_number, paid, paid_date) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)")
           .bind(id, jobId, job.customer_id, incomeDate, description, amount, amount, invoiceNumber, paid, paidDate).run();
         return json({ success: true, id, tax_mode: "AAM" }, 201, cors);
@@ -1395,7 +1395,7 @@ if (jobMatch && request.method === "DELETE") {
         const invoiceNumber = String(data.invoice_number || "").trim().slice(0, 100) || null;
         const paid = data.paid ? 1 : 0;
         const paidDate = paid ? String(data.paid_date || "").trim() : null;
-        if (paid && !/^\\d{4}-\\d{2}-\\d{2}$/.test(paidDate || "")) return json({ error: "Fizetett bevételnél a tényleges fizetési dátum kötelező." }, 400, cors);
+        if (paid && !/^\d{4}-\d{2}-\d{2}$/.test(paidDate || "")) return json({ error: "Fizetett bevételnél a tényleges fizetési dátum kötelező." }, 400, cors);
         await env.DB.prepare("UPDATE income_records SET invoice_number = ?, paid = ?, paid_date = ? WHERE id = ?")
           .bind(invoiceNumber, paid, paidDate, incomeRecordMatch[1]).run();
         return json({ success: true }, 200, cors);
