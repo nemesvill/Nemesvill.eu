@@ -846,7 +846,7 @@ showMessage(
           if (!item.paid) {
             paidDate = prompt('Mikor érkezett meg ténylegesen az összeg? (ÉÉÉÉ-HH-NN)', new Date().toISOString().slice(0,10));
             if (paidDate === null) return;
-            if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(paidDate)) { alert('A dátum formátuma ÉÉÉÉ-HH-NN legyen.'); return; }
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(paidDate)) { alert('A dátum formátuma ÉÉÉÉ-HH-NN legyen.'); return; }
           }
           try {
             await api('/api/income-records/' + encodeURIComponent(item.id), {
