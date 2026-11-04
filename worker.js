@@ -1449,7 +1449,7 @@ if (jobMatch && request.method === "DELETE") {
             ...cors,
             "Content-Type": attachment.content_type,
             "Content-Length": String(attachment.file_size),
-            "Content-Disposition": "attachment; filename*=UTF-8''" + encodeURIComponent(safeName),
+            "Content-Disposition": (url.searchParams.get("inline") === "1" && attachment.content_type.startsWith("image/") ? "inline" : "attachment") + "; filename*=UTF-8''" + encodeURIComponent(safeName),
             "Cache-Control": "private, no-store",
             "X-Content-Type-Options": "nosniff"
           }
