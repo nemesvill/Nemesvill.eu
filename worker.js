@@ -449,8 +449,15 @@ export default {
       const quoteMatch = url.pathname.match(/^\/api\/quotes\/([^/]+)$/);
 
       if (quoteMatch && request.method === "GET") {
-        const quote = await env.DB.prepare("SELECT * FROM quotes WHERE id = ?")
-          .bind(quoteMatch[1]).first();
+        const quote = await env.DB.prepare(`
+          SELECT quotes.*, customers.name AS customer_name,
+                 customers.company_name AS customer_company_name,
+                 customers.customer_type, customers.tax_number,
+                 customers.email AS customer_email, customers.phone AS customer_phone,
+                 customers.postal_code, customers.city, customers.street_address
+          FROM quotes LEFT JOIN customers ON customers.id = quotes.customer_id
+          WHERE quotes.id = ?
+        `).bind(quoteMatch[1]).first();
         if (!quote) return json({ error: "Az árajánlat nem található." }, 404, cors);
         const itemResult = await env.DB.prepare(
           "SELECT * FROM quote_items WHERE quote_id = ? ORDER BY sort_order, rowid"
@@ -481,9 +488,42 @@ export default {
         if (data.notes !== undefined) {
           updates.push("notes = ?"); values.push(data.notes === null ? null : String(data.notes).slice(0, 5000));
         }
-        if (!updates.length) return json({ error: "Nincs módosítandó adat." }, 400, cors);
+        if (data.issue_date !== undefined) {
+          if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(data.issue_date || "")) return json({ error: "Érvénytelen kiállítási dátum." }, 400, cors);
+          updates.push("issue_date = ?"); values.push(data.issue_date);
+        }
+        if (data.customer_id !== undefined) {
+          const customer = await env.DB.prepare("SELECT id FROM customers WHERE id = ? AND deleted_at IS NULL").bind(data.customer_id).first();
+          if (!customer) return json({ error: "Az ügyfél nem található." }, 400, cors);
+          updates.push("customer_id = ?"); values.push(data.customer_id);
+        }
+        let normalizedItems = null;
+        if (data.items !== undefined) {
+          try { normalizedItems = normalizeQuoteItems(data.items); }
+          catch (error) { return json({ error: error.message }, 400, cors); }
+          const newTotal = normalizedItems.reduce((sum, item) => sum + item.line_net, 0);
+          if (!Number.isSafeInteger(newTotal)) return json({ error: "Az ajánlat végösszege túl nagy." }, 400, cors);
+          updates.push("net_total = ?"); values.push(newTotal);
+          updates.push("vat_total = 0");
+          updates.push("gross_total = ?"); values.push(newTotal);
+        }
+        if (!updates.length && !normalizedItems) return json({ error: "Nincs módosítandó adat." }, 400, cors);
         updates.push("updated_at = datetime('now')");
-        await env.DB.prepare(`UPDATE quotes SET ${updates.join(", ")} WHERE id = ?`).bind(...values, id).run();
+        const statements = [];
+        if (updates.length) statements.push(env.DB.prepare(`UPDATE quotes SET ${updates.join(", ")} WHERE id = ?`).bind(...values, id));
+        if (normalizedItems) {
+          statements.push(env.DB.prepare("DELETE FROM quote_items WHERE quote_id = ?").bind(id));
+          for (const item of normalizedItems) {
+            statements.push(env.DB.prepare(`
+              INSERT INTO quote_items (
+                id, quote_id, sort_order, item_type, description, quantity, unit,
+                unit_net_price, vat_rate, line_net, line_vat, line_gross
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0, ?)
+            `).bind(item.id, id, item.sort_order, item.item_type, item.description,
+              item.quantity, item.unit, item.unit_net_price, item.line_net, item.line_gross));
+          }
+        }
+        await env.DB.batch(statements);
         return json({ success: true, id }, 200, cors);
       }
 
