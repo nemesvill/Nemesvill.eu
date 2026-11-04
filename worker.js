@@ -446,6 +446,48 @@ export default {
           net_total: netTotal, vat_total: 0, gross_total: netTotal }, 201, cors);
       }
 
+      // Elfogadott ajánlat átalakítása munkává
+      const convertMatch = url.pathname.match(/^\/api\/quotes\/([^/]+)\/convert$/);
+      if (convertMatch && request.method === "POST") {
+        const quote = await env.DB.prepare("SELECT * FROM quotes WHERE id = ?")
+          .bind(convertMatch[1]).first();
+        if (!quote) return json({ error: "Az árajánlat nem található." }, 404, cors);
+        if (quote.status === "converted") return json({ error: "Ez az ajánlat már munkává lett alakítva." }, 409, cors);
+        if (quote.status !== "accepted") return json({ error: "Csak elfogadott ajánlat alakítható munkává." }, 400, cors);
+        const existingJob = await env.DB.prepare("SELECT id, job_number FROM jobs WHERE quote_id = ?")
+          .bind(quote.id).first();
+        if (existingJob) return json({ error: "Ehhez az ajánlathoz már tartozik munka.", job: existingJob }, 409, cors);
+
+        const customer = await env.DB.prepare("SELECT * FROM customers WHERE id = ?")
+          .bind(quote.customer_id).first();
+        if (!customer) return json({ error: "Az ajánlathoz tartozó ügyfél nem található." }, 400, cors);
+        const lead = quote.lead_id
+          ? await env.DB.prepare("SELECT * FROM leads WHERE id = ?").bind(quote.lead_id).first()
+          : null;
+        const firstItem = await env.DB.prepare("SELECT description FROM quote_items WHERE quote_id = ? ORDER BY sort_order LIMIT 1")
+          .bind(quote.id).first();
+        const serviceType = ["villanyszereles","klimaszereles","ev_tolto","egyeb"].includes(lead?.service_type)
+          ? lead.service_type : "egyeb";
+        const jobId = crypto.randomUUID();
+        const jobNumber = await generateJobNumber(env.DB);
+        const title = firstItem?.description || ("Árajánlat alapján végzendő munka – " + quote.quote_number);
+        const description = "Elfogadott árajánlat: " + quote.quote_number +
+          (quote.notes ? "\\n" + quote.notes : "");
+        const address = lead?.location_text || [customer.postal_code, customer.city, customer.street_address].filter(Boolean).join(" ");
+        await env.DB.batch([
+          env.DB.prepare(`
+            INSERT INTO jobs (
+              id, customer_id, quote_id, lead_id, job_number, service_type, status,
+              title, description, address_text, notes, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, 'planned', ?, ?, ?, ?, datetime('now'), datetime('now'))
+          `).bind(jobId, quote.customer_id, quote.id, quote.lead_id || null, jobNumber,
+            serviceType, title, description, address || null, "Automatikusan létrehozva elfogadott árajánlatból."),
+          env.DB.prepare("UPDATE quotes SET status = 'converted', updated_at = datetime('now') WHERE id = ?")
+            .bind(quote.id)
+        ]);
+        return json({ success: true, job_id: jobId, job_number: jobNumber }, 201, cors);
+      }
+
       const quoteMatch = url.pathname.match(/^\/api\/quotes\/([^/]+)$/);
 
       if (quoteMatch && request.method === "GET") {
