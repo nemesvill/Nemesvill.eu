@@ -1692,7 +1692,7 @@ if (newJobButton) {
   });
 
   // PÉNZÜGYI ÁTTEKINTŐ ÉS KIADÁSOK
-  const financialMonth=$('financialMonth'), financialSummary=$('financialSummary'), financialDetails=$('financialDetails'), financialMessage=$('financialMessage');
+  const financialMonth=$('financialMonth'), financialYear=$('financialYear'), financialPeriod=$('financialPeriod'), financialChart=$('financialChart'), financialSummary=$('financialSummary'), financialDetails=$('financialDetails'), financialMessage=$('financialMessage');
   const expenseForm=$('expenseForm'), expenseList=$('expenseList'), expenseMessage=$('expenseMessage');
   const expenseJob=$('expenseJob');
   function populateExpenseJobs(){
@@ -1709,16 +1709,32 @@ if (newJobButton) {
   }
   const money=value=>new Intl.NumberFormat('hu-HU',{style:'currency',currency:'HUF',maximumFractionDigits:0}).format(Number(value||0));
   async function loadFinancial(){
-    if(!financialMonth||!financialSummary)return;
-    const month=financialMonth.value||new Date().toISOString().slice(0,7);financialMonth.value=month;
+    if(!financialSummary)return;
+    const period=financialPeriod?.value||'month';
+    const month=financialMonth?.value||new Date().toISOString().slice(0,7);
+    const year=String(financialYear?.value||new Date().getFullYear());
+    if(financialMonth)financialMonth.hidden=period!=='month';
+    if(financialYear)financialYear.hidden=period!=='year';
     showMessage(financialMessage,'Pénzügyi adatok betöltése...');
     try{
-      const d=await api('/api/financial?month='+encodeURIComponent(month));
+      const query=period==='year'?'period=year&year='+encodeURIComponent(year):'period=month&month='+encodeURIComponent(month);
+      const d=await api('/api/financial?'+query);
       financialSummary.innerHTML='';
-      [['Kiállított bevétel',d.income.invoiced],['Beérkezett pénz',d.income.received],['Kintlévőség',d.income.receivable],['Nyilvántartott kiadás',d.expenses.recorded],['Kifizetett kiadás',d.expenses.paid],['Fizetetlen kiadás',d.expenses.unpaid]].forEach(([label,value])=>{const card=document.createElement('article');card.className='financial-card';const l=document.createElement('span');l.textContent=label;const v=document.createElement('strong');v.textContent=money(value);card.append(l,v);financialSummary.append(card);});
+      [['Kiállított bevétel',d.income.invoiced],['Beérkezett pénz',d.income.received],['Kintlévőség',d.income.receivable],['Nyilvántartott kiadás',d.expenses.recorded],['Kifizetett kiadás',d.expenses.paid],['Fizetetlen kiadás',d.expenses.unpaid],['Pénzforgalmi eredmény',d.cash_result]].forEach(([label,value])=>{const card=document.createElement('article');card.className='financial-card';const l=document.createElement('span');l.textContent=label;const v=document.createElement('strong');v.textContent=money(value);card.append(l,v);financialSummary.append(card);});
+      if(financialChart){
+        financialChart.innerHTML='<h3>Beérkezett pénz és kifizetett kiadás</h3>';
+        const max=Math.max(1,...(d.series||[]).flatMap(x=>[x.received,x.paid]));
+        (d.series||[]).forEach(point=>{
+          const row=document.createElement('div');row.className='chart-row';
+          const label=document.createElement('span');label.className='chart-label';label.textContent=period==='year'?point.period.slice(5)+' . hó':point.period;
+          const bars=document.createElement('div');bars.className='chart-bars';
+          [['Bevétel',point.received,'received'],['Kiadás',point.paid,'paid']].forEach(([name,value,kind])=>{const line=document.createElement('div');line.className='chart-line';const caption=document.createElement('small');caption.textContent=name+' · '+money(value);const track=document.createElement('div');track.className='chart-track';const fill=document.createElement('div');fill.className='chart-fill '+kind;fill.style.width=(Number(value)/max*100)+'%';track.append(fill);line.append(caption,track);bars.append(line);});
+          row.append(label,bars);financialChart.append(row);
+        });
+      }
       financialDetails.innerHTML='<h3>Munkákhoz rögzített közvetlen költségek</h3>';
       [['Anyagköltség',d.job_costs.material],['Munkadíj',d.job_costs.labor],['Kiszállás',d.job_costs.travel],['Egyéb',d.job_costs.other]].forEach(([l,v])=>{const p=document.createElement('p');p.textContent=l+': '+money(v);financialDetails.append(p);});
-      const note=document.createElement('p');note.className='financial-note';note.textContent='A közvetlen munkaköltségek külön szerepelnek, nem adjuk hozzá még egyszer a kiadásokhoz. Régi, ismeretlen fizetési állapotú kiadások: '+money(d.expenses.unknown_paid)+'.';financialDetails.append(note);clearMessage(financialMessage);
+      const note=document.createElement('p');note.className='financial-note';note.textContent='A közvetlen munkaköltségek külön szerepelnek, nem adjuk hozzá még egyszer a kiadásokhoz. Régi, ismeretlen fizetési állapotú kiadások: '+money(d.expenses.unknown_paid)+'. A pénzforgalmi eredmény a ténylegesen beérkezett bevétel és kifizetett kiadás különbsége.';financialDetails.append(note);clearMessage(financialMessage);
     }catch(e){showMessage(financialMessage,e.message,'error');}
   }
   async function loadExpenses(){
@@ -1732,7 +1748,7 @@ if (newJobButton) {
   }
   const expensePaid=expenseForm?.elements.namedItem('paid'), expensePaidDate=expenseForm?.elements.namedItem('paid_date');
   if(expenseForm){expenseForm.elements.namedItem('expense_date').value=new Date().toISOString().slice(0,10);expensePaid.addEventListener('change',()=>{expensePaidDate.disabled=!expensePaid.checked;if(expensePaid.checked&&!expensePaidDate.value)expensePaidDate.value=new Date().toISOString().slice(0,10);});expenseForm.addEventListener('submit',async event=>{event.preventDefault();const p=Object.fromEntries(new FormData(expenseForm).entries());p.gross_amount=Number(p.gross_amount);p.paid=expensePaid.checked;p.paid_date=p.paid?expensePaidDate.value:null;p.job_id=p.job_id||null;try{await api('/api/expenses',{method:'POST',body:JSON.stringify(p)});expenseForm.reset();expenseForm.elements.namedItem('expense_date').value=new Date().toISOString().slice(0,10);expensePaidDate.disabled=true;showMessage(expenseMessage,'Kiadás elmentve.','success');await Promise.all([loadExpenses(),loadFinancial()]);}catch(e){showMessage(expenseMessage,e.message,'error');}});}
-  $('refreshFinancialButton')?.addEventListener('click',loadFinancial);financialMonth?.addEventListener('change',loadFinancial);
+  $('refreshFinancialButton')?.addEventListener('click',loadFinancial);financialMonth?.addEventListener('change',loadFinancial);financialYear?.addEventListener('change',loadFinancial);financialPeriod?.addEventListener('change',loadFinancial);
 
   // INDÍTÁS
   checkSession();
