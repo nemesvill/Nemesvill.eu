@@ -69,8 +69,8 @@
       <section class="panel coming-panel" id="financialSection">
         <div class="eyebrow">PÉNZÜGYEK</div><h2>Pénzügyi áttekintő</h2>
         <p class="muted">Számlázott és tényleges pénzmozgások külön. AAM – alanyi adómentes.</p>
-        <div class="financial-toolbar"><label for="financialMonth">Hónap</label><input id="financialMonth" type="month"><button type="button" id="refreshFinancialButton">Frissítés</button></div>
-        <div id="financialMessage" class="message" role="status"></div><div id="financialSummary" class="financial-grid"></div><div id="financialDetails" class="financial-details"></div>
+        <div class="financial-toolbar"><label for="financialPeriod">Időszak</label><select id="financialPeriod"><option value="month">Havi</option><option value="year">Éves</option></select><label for="financialMonth">Hónap</label><input id="financialMonth" type="month"><label for="financialYear" hidden>Év</label><input id="financialYear" type="number" min="2020" max="2100" step="1" hidden><button type="button" id="refreshFinancialButton">Frissítés</button></div>
+        <div id="financialMessage" class="message" role="status"></div><div id="financialSummary" class="financial-grid"></div><div id="financialChart" class="financial-chart"></div><div id="financialDetails" class="financial-details"></div>
       </section>
       <section class="panel coming-panel" id="expensesSection">
         <div class="eyebrow">KIADÁSOK</div><h2>Kiadások rögzítése</h2>
