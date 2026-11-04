@@ -28,3 +28,10 @@
 .expense-row{display:flex;justify-content:space-between;gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}.expense-row p{margin:4px 0 0}
 .expense-actions{display:flex;gap:8px;flex-wrap:wrap}.expense-actions button{margin:0}
 @media(max-width:620px){.financial-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.expense-form{grid-template-columns:1fr}.expense-row{align-items:flex-start;flex-direction:column}}
+
+.financial-toolbar select,.financial-toolbar input{max-width:170px}
+.financial-chart{margin:22px 0;padding:16px;border:1px solid var(--line);border-radius:12px;background:#091722}
+.chart-row{display:grid;grid-template-columns:62px 1fr;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid #263b4d}
+.chart-label{font-weight:700;color:var(--muted)}.chart-bars{display:grid;gap:6px}.chart-line small{display:block;color:var(--muted);font-size:.78rem;margin-bottom:3px}
+.chart-track{height:9px;border-radius:8px;background:#203443;overflow:hidden}.chart-fill{height:100%;border-radius:8px;min-width:0}.chart-fill.received{background:#2fc6c0}.chart-fill.paid{background:#e6a45d}
+@media(max-width:620px){.financial-toolbar{align-items:stretch}.financial-toolbar label{width:100%}.chart-row{grid-template-columns:48px 1fr;gap:7px}}
