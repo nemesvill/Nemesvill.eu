@@ -1139,6 +1139,7 @@ showMessage(
         signal: AbortSignal.timeout(12000)
       });
       jobs = Array.isArray(result) ? result : (result.items || result.jobs || []);
+      populateExpenseJobs();
       renderJobs();
     } catch (error) {
       jobList.innerHTML = '';
