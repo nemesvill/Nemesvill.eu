@@ -66,6 +66,29 @@
         </article>
       </div>
 
+      <section class="panel coming-panel" id="financialSection">
+        <div class="eyebrow">PÉNZÜGYEK</div><h2>Pénzügyi áttekintő</h2>
+        <p class="muted">Számlázott és tényleges pénzmozgások külön. AAM – alanyi adómentes.</p>
+        <div class="financial-toolbar"><label for="financialMonth">Hónap</label><input id="financialMonth" type="month"><button type="button" id="refreshFinancialButton">Frissítés</button></div>
+        <div id="financialMessage" class="message" role="status"></div><div id="financialSummary" class="financial-grid"></div><div id="financialDetails" class="financial-details"></div>
+      </section>
+      <section class="panel coming-panel" id="expensesSection">
+        <div class="eyebrow">KIADÁSOK</div><h2>Kiadások rögzítése</h2>
+        <p class="muted">Általános vagy munkához kapcsolt kiadások.</p>
+        <form id="expenseForm" class="expense-form">
+          <label>Dátum<input name="expense_date" type="date" required></label>
+          <label>Kategória<select name="category"><option>Anyag</option><option>Eszköz</option><option>Üzemanyag</option><option>Szolgáltatás</option><option>Egyéb</option></select></label>
+          <label>Megnevezés<input name="description" maxlength="500" required></label>
+          <label>Bruttó összeg (Ft)<input name="gross_amount" type="number" min="0" step="1" required></label>
+          <label>Beszállító<input name="supplier" maxlength="200"></label><label>Bizonylatszám<input name="document_ref" maxlength="100"></label>
+          <label>Kapcsolódó munka<select name="job_id" id="expenseJob"><option value="">Nincs – általános kiadás</option></select></label>
+          <label class="expense-paid"><input name="paid" type="checkbox" value="1"> Már kifizettem</label>
+          <label>Fizetés dátuma<input name="paid_date" type="date" disabled></label>
+          <button type="submit">Kiadás mentése</button>
+        </form>
+        <div id="expenseMessage" class="message" role="status"></div><div id="expenseList"></div>
+      </section>
+
       <!-- ÜGYFELEK -->
       <section class="panel coming-panel">
         <div class="eyebrow">ÜGYFÉLKEZELÉS</div>
