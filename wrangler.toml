@@ -1,6 +1,7 @@
 name = "nemesvill-crm-api"
 main = "worker.js"
 compatibility_date = "2026-11-04"
+keep_vars = true
 
 [[d1_databases]]
 binding = "DB"
