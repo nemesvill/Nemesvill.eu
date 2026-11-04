@@ -81,6 +81,7 @@
     loadCustomers();
     loadLeads();
     loadJobs();
+    loadQuotes();
     checkDatabase();
   }
 
@@ -1005,6 +1006,201 @@ if (newJobButton) {
     });
   }
   
+
+  // ÁRAJÁNLATOK
+  let quotes = [];
+  const quoteList = $('quoteList');
+  const quoteListMessage = $('quoteListMessage');
+  const quoteSearch = $('quoteSearch');
+  const quoteFormPanel = $('quoteFormPanel');
+  const quoteForm = $('quoteForm');
+  const quoteCustomer = $('quoteCustomer');
+  const quoteLead = $('quoteLead');
+  const quoteItems = $('quoteItems');
+  const quoteTotalPreview = $('quoteTotalPreview');
+  const quoteFormMessage = $('quoteFormMessage');
+
+  function formatHuf(value) {
+    return new Intl.NumberFormat('hu-HU', { maximumFractionDigits: 0 }).format(Number(value) || 0) + ' Ft';
+  }
+
+  function populateQuoteSelectors() {
+    if (quoteCustomer) {
+      const previous = quoteCustomer.value;
+      quoteCustomer.innerHTML = '<option value="">Ügyfél kiválasztása</option>';
+      customers.forEach(customer => {
+        const option = document.createElement('option');
+        option.value = customer.id;
+        option.textContent = customerName(customer);
+        quoteCustomer.append(option);
+      });
+      if (customers.some(customer => customer.id === previous)) quoteCustomer.value = previous;
+    }
+    if (quoteLead) {
+      const previous = quoteLead.value;
+      quoteLead.innerHTML = '<option value="">Nincs kapcsolódó érdeklődés</option>';
+      leads.forEach(lead => {
+        const option = document.createElement('option');
+        option.value = lead.id;
+        option.textContent = (lead.subject || 'Érdeklődés') + (lead.customer_name ? ' – ' + lead.customer_name : '');
+        quoteLead.append(option);
+      });
+      if (leads.some(lead => lead.id === previous)) quoteLead.value = previous;
+    }
+  }
+
+  function addQuoteItemRow() {
+    if (!quoteItems) return;
+    const row = document.createElement('div');
+    row.className = 'quote-item-row';
+    row.style.cssText = 'display:grid;grid-template-columns: minmax(130px,2fr) minmax(65px,.7fr) minmax(65px,.7fr) minmax(90px,1fr) auto;gap:8px;margin:10px 0;align-items:end;';
+    const descriptionWrap = document.createElement('label');
+    descriptionWrap.textContent = 'Megnevezés';
+    const description = document.createElement('input');
+    description.type = 'text'; description.required = true; description.maxLength = 250;
+    description.placeholder = 'Anyag vagy munkadíj';
+    descriptionWrap.append(description);
+
+    const typeWrap = document.createElement('label');
+    typeWrap.textContent = 'Típus';
+    const type = document.createElement('select');
+    [['material','Anyag'],['service','Munkadíj / szolgáltatás'],['travel','Kiszállás'],['other','Egyéb']].forEach(([value,label]) => {
+      const option = document.createElement('option'); option.value = value; option.textContent = label; type.append(option);
+    });
+    typeWrap.append(type);
+
+    const quantityWrap = document.createElement('label');
+    quantityWrap.textContent = 'Mennyiség';
+    const quantity = document.createElement('input');
+    quantity.type = 'number'; quantity.min = '0.001'; quantity.step = '0.001'; quantity.value = '1'; quantity.required = true;
+    quantityWrap.append(quantity);
+
+    const priceWrap = document.createElement('label');
+    priceWrap.textContent = 'Egységár (Ft)';
+    const price = document.createElement('input');
+    price.type = 'number'; price.min = '0'; price.step = '1'; price.value = '0'; price.required = true;
+    priceWrap.append(price);
+
+    const remove = document.createElement('button');
+    remove.type = 'button'; remove.className = 'secondary'; remove.textContent = '×';
+    remove.setAttribute('aria-label', 'Tétel törlése');
+    remove.addEventListener('click', () => { row.remove(); updateQuotePreview(); });
+    [quantity, price].forEach(input => input.addEventListener('input', updateQuotePreview));
+    row.append(descriptionWrap, typeWrap, quantityWrap, priceWrap, remove);
+    row._quoteFields = { description, type, quantity, price };
+    quoteItems.append(row);
+    updateQuotePreview();
+  }
+
+  function updateQuotePreview() {
+    if (!quoteItems || !quoteTotalPreview) return;
+    const total = [...quoteItems.querySelectorAll('.quote-item-row')].reduce((sum, row) => {
+      const f = row._quoteFields;
+      return sum + Math.round((Number(f.quantity.value) || 0) * (Number(f.price.value) || 0));
+    }, 0);
+    quoteTotalPreview.textContent = formatHuf(total);
+  }
+
+  function quoteStatusLabel(status) {
+    return ({draft:'Piszkozat',sent:'Elküldve',accepted:'Elfogadva',rejected:'Elutasítva',expired:'Lejárt',converted:'Munkává alakítva'})[status] || status;
+  }
+
+  async function loadQuotes() {
+    if (!quoteList) return;
+    try {
+      const result = await api('/api/quotes');
+      quotes = result.items || result.quotes || [];
+      renderQuotes();
+      clearMessage(quoteListMessage);
+    } catch (error) {
+      showMessage(quoteListMessage, error.message, 'error');
+    }
+  }
+
+  function renderQuotes() {
+    if (!quoteList) return;
+    const query = (quoteSearch?.value || '').toLowerCase().trim();
+    const filtered = quotes.filter(q => [q.quote_number, q.customer_name, q.customer_company_name, q.status].join(' ').toLowerCase().includes(query));
+    quoteList.innerHTML = '';
+    if (!filtered.length) {
+      quoteList.textContent = 'Még nincs rögzített árajánlat.';
+      return;
+    }
+    filtered.forEach(q => {
+      const card = document.createElement('article');
+      card.className = 'item-card';
+      const heading = document.createElement('h3');
+      heading.textContent = q.quote_number + ' – ' + (q.customer_company_name || q.customer_name || 'Ügyfél');
+      const details = document.createElement('p');
+      details.textContent = quoteStatusLabel(q.status) + ' · ' + (q.issue_date || '') + ' · AAM';
+      const total = document.createElement('p');
+      total.textContent = 'Fizetendő: ' + formatHuf(q.gross_total);
+      const status = document.createElement('select');
+      [['draft','Piszkozat'],['sent','Elküldve'],['accepted','Elfogadva'],['rejected','Elutasítva'],['expired','Lejárt']].forEach(([value,label]) => {
+        const option = document.createElement('option'); option.value=value; option.textContent=label; status.append(option);
+      });
+      status.value = q.status;
+      status.addEventListener('change', async () => {
+        try {
+          await api('/api/quotes/' + encodeURIComponent(q.id), {method:'PUT',body:JSON.stringify({status:status.value})});
+          await loadQuotes();
+        } catch(error) { showMessage(quoteListMessage,error.message,'error'); status.value=q.status; }
+      });
+      if (q.status === 'converted') status.disabled = true;
+      const statusLabelNode = document.createElement('label');
+      statusLabelNode.textContent = 'Státusz'; statusLabelNode.append(status);
+      card.append(heading, details, total, statusLabelNode);
+      quoteList.append(card);
+    });
+  }
+
+  const newQuoteButton = $('newQuoteButton');
+  const cancelQuoteButton = $('cancelQuoteButton');
+  const addQuoteItemButton = $('addQuoteItemButton');
+
+  if (newQuoteButton) newQuoteButton.addEventListener('click', () => {
+    quoteForm?.reset();
+    if (quoteItems) quoteItems.innerHTML = '';
+    populateQuoteSelectors();
+    if ($('quoteIssueDate')) $('quoteIssueDate').value = new Date().toISOString().slice(0,10);
+    if (quoteFormPanel) quoteFormPanel.hidden = false;
+    if (quoteFormMessage) quoteFormMessage.textContent = '';
+    addQuoteItemRow();
+  });
+  if (cancelQuoteButton) cancelQuoteButton.addEventListener('click', () => {
+    if (quoteFormPanel) quoteFormPanel.hidden = true;
+    quoteForm?.reset();
+  });
+  if (addQuoteItemButton) addQuoteItemButton.addEventListener('click', addQuoteItemRow);
+  if (quoteSearch) quoteSearch.addEventListener('input', renderQuotes);
+  if (quoteForm) quoteForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    const rows = [...quoteItems.querySelectorAll('.quote-item-row')];
+    const items = rows.map(row => {
+      const f = row._quoteFields;
+      return {description:f.description.value.trim(), item_type:f.type.value, quantity:Number(f.quantity.value), unit:'db', unit_net_price:Number(f.price.value)};
+    });
+    const payload = {
+      customer_id: quoteCustomer.value,
+      lead_id: quoteLead.value || null,
+      issue_date: $('quoteIssueDate').value || null,
+      valid_until: $('quoteValidUntil').value || null,
+      notes: $('quoteNotes').value.trim(),
+      items
+    };
+    try {
+      showMessage(quoteFormMessage, 'Árajánlat mentése...');
+      const result = await api('/api/quotes', {method:'POST',body:JSON.stringify(payload)});
+      showMessage(quoteFormMessage, 'Elmentve: ' + result.quote_number, 'success');
+      quoteForm.reset();
+      quoteItems.innerHTML = '';
+      if (quoteFormPanel) quoteFormPanel.hidden = true;
+      await loadQuotes();
+    } catch(error) {
+      showMessage(quoteFormMessage, error.message, 'error');
+    }
+  });
+
   // INDÍTÁS
   checkSession();
 })();
