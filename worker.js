@@ -362,6 +362,53 @@ export default {
         }, 200, cors);
       }
 
+      // Pénzügyi áttekintő: számlázott és tényleges pénzforgalom
+      if (url.pathname === "/api/financial" && request.method === "GET") {
+        const month = url.searchParams.get("month") || new Date().toISOString().slice(0,7);
+        if (!/^\d{4}-\d{2}$/.test(month)) return json({error:"Érvénytelen hónap."},400,cors);
+        const start = month + "-01";
+        const end = new Date(Date.UTC(Number(month.slice(0,4)),Number(month.slice(5,7)),1)).toISOString().slice(0,10);
+        const income = await env.DB.prepare("SELECT COALESCE(SUM(CASE WHEN income_date >= ? AND income_date < ? THEN gross_amount ELSE 0 END),0) AS invoiced, COALESCE(SUM(CASE WHEN paid = 1 AND paid_date >= ? AND paid_date < ? THEN gross_amount ELSE 0 END),0) AS received, COALESCE(SUM(CASE WHEN paid = 0 THEN gross_amount ELSE 0 END),0) AS receivable FROM income_records").bind(start,end,start,end).first();
+        const expenses = await env.DB.prepare("SELECT COALESCE(SUM(CASE WHEN expense_date >= ? AND expense_date < ? THEN gross_amount ELSE 0 END),0) AS recorded, COALESCE(SUM(CASE WHEN paid = 1 AND paid_date >= ? AND paid_date < ? THEN gross_amount ELSE 0 END),0) AS paid, COALESCE(SUM(CASE WHEN paid = 0 THEN gross_amount ELSE 0 END),0) AS unpaid, COALESCE(SUM(CASE WHEN paid IS NULL THEN gross_amount ELSE 0 END),0) AS unknown_paid FROM expenses").bind(start,end,start,end).first();
+        const costs = await env.DB.prepare("SELECT cost_type, COALESCE(SUM(ROUND(quantity * unit_net_cost)),0) AS total FROM job_cost_items WHERE substr(created_at,1,7) = ? GROUP BY cost_type").bind(month).all();
+        const jobCosts = {material:0,labor:0,travel:0,other:0};
+        for (const row of costs.results || []) if (Object.prototype.hasOwnProperty.call(jobCosts,row.cost_type)) jobCosts[row.cost_type]=Number(row.total||0);
+        return json({month,income:{invoiced:Number(income?.invoiced||0),received:Number(income?.received||0),receivable:Number(income?.receivable||0)},expenses:{recorded:Number(expenses?.recorded||0),paid:Number(expenses?.paid||0),unpaid:Number(expenses?.unpaid||0),unknown_paid:Number(expenses?.unknown_paid||0)},job_costs:jobCosts,tax_mode:"AAM"},200,cors);
+      }
+
+      // Kiadások listázása és rögzítése
+      if (url.pathname === "/api/expenses" && request.method === "GET") {
+        const result = await env.DB.prepare("SELECT expenses.*, jobs.job_number FROM expenses LEFT JOIN jobs ON jobs.id=expenses.job_id ORDER BY expense_date DESC, created_at DESC LIMIT 500").all();
+        return json({items:result.results||[],tax_mode:"AAM"},200,cors);
+      }
+      if (url.pathname === "/api/expenses" && request.method === "POST") {
+        const data = await readBody(request)||{};
+        const date=String(data.expense_date||"").trim(), category=String(data.category||"").trim().slice(0,80), description=String(data.description||"").trim().slice(0,500), amount=Number(data.gross_amount);
+        const supplier=String(data.supplier||"").trim().slice(0,200)||null, ref=String(data.document_ref||"").trim().slice(0,100)||null, jobId=data.job_id||null;
+        const paid=data.paid===true||data.paid==="1"?1:(data.paid===false||data.paid==="0"?0:null), paidDate=paid===1?String(data.paid_date||"").trim():null;
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({error:"Érvényes kiadási dátum szükséges."},400,cors);
+        if(!category||!description) return json({error:"A kategória és megnevezés kötelező."},400,cors);
+        if(!Number.isSafeInteger(amount)||amount<0) return json({error:"Az összeg nulla vagy pozitív egész forint legyen."},400,cors);
+        if(paid===1&&!/^\d{4}-\d{2}-\d{2}$/.test(paidDate)) return json({error:"A fizetés dátuma kötelező."},400,cors);
+        if(jobId&&!(await env.DB.prepare("SELECT id FROM jobs WHERE id=?").bind(jobId).first())) return json({error:"A kapcsolódó munka nem található."},400,cors);
+        const id=crypto.randomUUID();
+        await env.DB.prepare("INSERT INTO expenses (id,job_id,expense_date,category,description,net_amount,vat_amount,gross_amount,supplier,document_ref,paid,paid_date) VALUES (?,?,?,?,?,?,0,?,?,?,?,?)").bind(id,jobId,date,category,description,amount,amount,supplier,ref,paid,paidDate).run();
+        return json({success:true,id,tax_mode:"AAM"},201,cors);
+      }
+      const expenseMatch=url.pathname.match(/^\/api\/expenses\/([^/]+)$/);
+      if(expenseMatch&&request.method==="PUT"){
+        const data=await readBody(request)||{}, paid=data.paid?1:0, date=paid?String(data.paid_date||"").trim():null;
+        if(paid&&!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({error:"A fizetés dátuma kötelező."},400,cors);
+        const result=await env.DB.prepare("UPDATE expenses SET paid=?,paid_date=? WHERE id=?").bind(paid,date,expenseMatch[1]).run();
+        if(!result.meta?.changes)return json({error:"A kiadás nem található."},404,cors);
+        return json({success:true},200,cors);
+      }
+      if(expenseMatch&&request.method==="DELETE"){
+        const result=await env.DB.prepare("DELETE FROM expenses WHERE id=?").bind(expenseMatch[1]).run();
+        if(!result.meta?.changes)return json({error:"A kiadás nem található."},404,cors);
+        return json({success:true},200,cors);
+      }
+
       // Vezérlőpult számlálói
       if (url.pathname === "/api/dashboard" && request.method === "GET") {
         const customers = await env.DB.prepare(
