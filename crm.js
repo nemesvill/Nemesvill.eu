@@ -1009,6 +1009,7 @@ if (newJobButton) {
 
   // ÁRAJÁNLATOK
   let quotes = [];
+  let editingQuoteId = null;
   const quoteList = $('quoteList');
   const quoteListMessage = $('quoteListMessage');
   const quoteSearch = $('quoteSearch');
@@ -1049,7 +1050,7 @@ if (newJobButton) {
     }
   }
 
-  function addQuoteItemRow() {
+  function addQuoteItemRow(initial = {}) {
     if (!quoteItems) return;
     const row = document.createElement('div');
     row.className = 'quote-item-row';
@@ -1059,6 +1060,7 @@ if (newJobButton) {
     const description = document.createElement('input');
     description.type = 'text'; description.required = true; description.maxLength = 250;
     description.placeholder = 'Anyag vagy munkadíj';
+    description.value = initial.description || '';
     descriptionWrap.append(description);
 
     const typeWrap = document.createElement('label');
@@ -1067,18 +1069,19 @@ if (newJobButton) {
     [['material','Anyag'],['service','Munkadíj / szolgáltatás'],['travel','Kiszállás'],['other','Egyéb']].forEach(([value,label]) => {
       const option = document.createElement('option'); option.value = value; option.textContent = label; type.append(option);
     });
+    type.value = initial.item_type || 'service';
     typeWrap.append(type);
 
     const quantityWrap = document.createElement('label');
     quantityWrap.textContent = 'Mennyiség';
     const quantity = document.createElement('input');
-    quantity.type = 'number'; quantity.min = '0.001'; quantity.step = '0.001'; quantity.value = '1'; quantity.required = true;
+    quantity.type = 'number'; quantity.min = '0.001'; quantity.step = '0.001'; quantity.value = String(initial.quantity ?? 1); quantity.required = true;
     quantityWrap.append(quantity);
 
     const priceWrap = document.createElement('label');
     priceWrap.textContent = 'Egységár (Ft)';
     const price = document.createElement('input');
-    price.type = 'number'; price.min = '0'; price.step = '1'; price.value = '0'; price.required = true;
+    price.type = 'number'; price.min = '0'; price.step = '1'; price.value = String(initial.unit_net_price ?? 0); price.required = true;
     priceWrap.append(price);
 
     const remove = document.createElement('button');
@@ -1149,9 +1152,85 @@ if (newJobButton) {
       if (q.status === 'converted') status.disabled = true;
       const statusLabelNode = document.createElement('label');
       statusLabelNode.textContent = 'Státusz'; statusLabelNode.append(status);
-      card.append(heading, details, total, statusLabelNode);
+      const actions = document.createElement('div');
+      actions.className = 'item-actions';
+      const editButton = document.createElement('button');
+      editButton.type = 'button'; editButton.textContent = 'Szerkesztés';
+      editButton.addEventListener('click', () => editQuote(q.id));
+      const printButton = document.createElement('button');
+      printButton.type = 'button'; printButton.className = 'secondary'; printButton.textContent = 'Nyomtatás / PDF';
+      printButton.addEventListener('click', () => printQuote(q.id));
+      actions.append(editButton, printButton);
+      card.append(heading, details, total, statusLabelNode, actions);
       quoteList.append(card);
     });
+  }
+
+
+  async function editQuote(id) {
+    try {
+      const result = await api('/api/quotes/' + encodeURIComponent(id));
+      const quote = result.quote;
+      editingQuoteId = id;
+      populateQuoteSelectors();
+      quoteCustomer.value = quote.customer_id || '';
+      quoteLead.value = quote.lead_id || '';
+      $('quoteIssueDate').value = quote.issue_date || '';
+      $('quoteValidUntil').value = quote.valid_until || '';
+      $('quoteNotes').value = quote.notes || '';
+      quoteItems.innerHTML = '';
+      (result.items || []).forEach(item => addQuoteItemRow(item));
+      if (!result.items?.length) addQuoteItemRow();
+      $('quoteFormPanel').querySelector('h3').textContent = 'Árajánlat szerkesztése – ' + quote.quote_number;
+      $('saveQuoteButton').textContent = 'Módosítások mentése';
+      quoteFormPanel.hidden = false;
+      quoteFormPanel.scrollIntoView({behavior:'smooth',block:'start'});
+    } catch(error) {
+      showMessage(quoteListMessage,error.message,'error');
+    }
+  }
+
+  function escapeQuoteHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  }
+
+  async function printQuote(id) {
+    try {
+      const result = await api('/api/quotes/' + encodeURIComponent(id));
+      const q = result.quote;
+      const w = window.open('', '_blank');
+      if (!w) throw new Error('A felugró ablakot a böngésző letiltotta. Engedélyezd a felugró ablakokat a nyomtatáshoz.');
+      const address = [q.postal_code, q.city, q.street_address].filter(Boolean).join(' ');
+      const rows = (result.items || []).map(item => `
+        <tr><td>${escapeQuoteHtml(item.description)}</td><td>${escapeQuoteHtml(item.quantity)} ${escapeQuoteHtml(item.unit)}</td><td>${formatHuf(item.unit_net_price)}</td><td>${formatHuf(item.line_gross)}</td></tr>
+      `).join('');
+      w.document.write(`<!doctype html><html lang="hu"><head><meta charset="utf-8"><title>${escapeQuoteHtml(q.quote_number)}</title>
+      <style>
+      body{font:14px Arial,sans-serif;color:#222;margin:32px}header{display:flex;justify-content:space-between;border-bottom:3px solid #222;padding-bottom:18px}
+      h1{font-size:25px;margin:0 0 6px}h2{margin-top:30px;font-size:18px}.muted{color:#666}
+      .grid{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin:25px 0}table{width:100%;border-collapse:collapse;margin-top:18px}
+      th,td{padding:10px 8px;border-bottom:1px solid #ddd;text-align:left}th{background:#f2f2f2}.right{text-align:right}
+      .total{margin:25px 0 0 auto;width:300px;text-align:right;font-size:20px;font-weight:bold}.aam{margin-top:15px;padding:12px;background:#f4f4f4}
+      .notes{white-space:pre-wrap;margin-top:25px}.sign{display:grid;grid-template-columns:1fr 1fr;gap:70px;margin-top:85px}.sign div{border-top:1px solid #777;padding-top:8px}
+      @media print{body{margin:15mm}.no-print{display:none}}
+      </style></head><body>
+      <header><div><h1>NEMESVILL</h1><div>Villanyszerelés · Klímaszerelés · EV-töltő telepítés</div><div class="muted">Dunaújváros és környéke</div></div>
+      <div style="text-align:right"><h1>ÁRAJÁNLAT</h1><strong>${escapeQuoteHtml(q.quote_number)}</strong><div>Kiállítás: ${escapeQuoteHtml(q.issue_date)}</div><div>Érvényes: ${escapeQuoteHtml(q.valid_until || 'Visszavonásig')}</div></div></header>
+      <div class="grid"><section><h2>Ajánlattevő</h2><strong>Nemesvill – Nemes László e.v.</strong><div>Dunaújváros és 30 km-es körzete</div><div class="muted">Web: nemesvill.eu</div></section>
+      <section><h2>Megrendelő</h2><strong>${escapeQuoteHtml(q.customer_company_name || q.customer_name)}</strong>
+      <div>${escapeQuoteHtml(address)}</div><div>${escapeQuoteHtml(q.customer_email || '')}</div><div>${escapeQuoteHtml(q.customer_phone || '')}</div>
+      ${q.tax_number ? '<div>Adószám: '+escapeQuoteHtml(q.tax_number)+'</div>' : ''}</section></div>
+      <h2>Ajánlati tételek</h2><table><thead><tr><th>Megnevezés</th><th>Mennyiség</th><th>Egységár</th><th>Összesen</th></tr></thead><tbody>${rows}</tbody></table>
+      <div class="aam"><strong>Adózási mód: AAM – alanyi adómentes.</strong><br>Áfa összege: 0 Ft.</div>
+      <div class="total">Fizetendő összeg: ${formatHuf(q.gross_total)}</div>
+      ${q.notes ? '<div class="notes"><h2>Megjegyzés</h2>'+escapeQuoteHtml(q.notes)+'</div>' : ''}
+      <div class="sign"><div>Ajánlattevő aláírása</div><div>Megrendelő aláírása / elfogadása</div></div>
+      <p class="muted" style="margin-top:40px">Köszönjük megkeresését!</p><button class="no-print" onclick="window.print()">Nyomtatás / Mentés PDF-ként</button>
+      </body></html>`);
+      w.document.close();
+    } catch(error) {
+      showMessage(quoteListMessage,error.message,'error');
+    }
   }
 
   const newQuoteButton = $('newQuoteButton');
@@ -1159,7 +1238,10 @@ if (newJobButton) {
   const addQuoteItemButton = $('addQuoteItemButton');
 
   if (newQuoteButton) newQuoteButton.addEventListener('click', () => {
+    editingQuoteId = null;
     quoteForm?.reset();
+    if ($('quoteFormPanel').querySelector('h3')) $('quoteFormPanel').querySelector('h3').textContent = 'Új árajánlat készítése';
+    $('saveQuoteButton').textContent = 'Árajánlat mentése';
     if (quoteItems) quoteItems.innerHTML = '';
     populateQuoteSelectors();
     if ($('quoteIssueDate')) $('quoteIssueDate').value = new Date().toISOString().slice(0,10);
@@ -1190,8 +1272,13 @@ if (newJobButton) {
     };
     try {
       showMessage(quoteFormMessage, 'Árajánlat mentése...');
-      const result = await api('/api/quotes', {method:'POST',body:JSON.stringify(payload)});
-      showMessage(quoteFormMessage, 'Elmentve: ' + result.quote_number, 'success');
+      const result = editingQuoteId
+        ? await api('/api/quotes/' + encodeURIComponent(editingQuoteId), {method:'PUT',body:JSON.stringify(payload)})
+        : await api('/api/quotes', {method:'POST',body:JSON.stringify(payload)});
+      showMessage(quoteFormMessage, editingQuoteId ? 'Árajánlat módosítva.' : 'Elmentve: ' + result.quote_number, 'success');
+      editingQuoteId = null;
+      $('saveQuoteButton').textContent = 'Árajánlat mentése';
+      $('quoteFormPanel').querySelector('h3').textContent = 'Új árajánlat készítése';
       quoteForm.reset();
       quoteItems.innerHTML = '';
       if (quoteFormPanel) quoteFormPanel.hidden = true;
