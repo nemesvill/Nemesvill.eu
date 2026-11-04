@@ -977,10 +977,26 @@ showMessage(
           const label = document.createElement('span');
           const sizeMb = (Number(file.file_size || 0) / (1024 * 1024)).toFixed(2);
           label.textContent = file.file_name + ' · ' + sizeMb + ' MB · ' + new Date(file.created_at).toLocaleString('hu-HU');
+          const fileUrl = 'https://crm-api.nemesvill.eu/api/attachments/' + encodeURIComponent(file.id);
+          if (String(file.content_type || '').startsWith('image/')) {
+            const preview = document.createElement('img');
+            preview.src = fileUrl + '?inline=1';
+            preview.alt = file.file_name || 'Munkához csatolt fénykép';
+            preview.loading = 'lazy';
+            preview.style.display = 'block';
+            preview.style.maxWidth = '220px';
+            preview.style.maxHeight = '160px';
+            preview.style.objectFit = 'contain';
+            preview.style.borderRadius = '8px';
+            preview.style.margin = '8px 0';
+            preview.style.border = '1px solid var(--border, #ddd)';
+            row.style.flexWrap = 'wrap';
+            row.append(preview);
+          }
           const actions = document.createElement('div');
           actions.className = 'job-income-actions';
           const download = document.createElement('a');
-          download.href = 'https://crm-api.nemesvill.eu/api/attachments/' + encodeURIComponent(file.id);
+          download.href = fileUrl;
           download.textContent = 'Letöltés';
           download.target = '_blank';
           download.rel = 'noopener';
