@@ -18,4 +18,4 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: d1 execute nemesvill-crm --remote --command="SELECT name, sql FROM sqlite_master WHERE type = 'table' ORDER BY name; SELECT name, sql FROM sqlite_master WHERE type = 'index' ORDER BY name;"
+          command: d1 execute nemesvill-crm --remote --json --command="SELECT name, sql FROM sqlite_master WHERE type IN ('table','index') ORDER BY type, name;"
