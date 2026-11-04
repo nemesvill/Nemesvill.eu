@@ -1380,6 +1380,80 @@ if (jobMatch && request.method === "DELETE") {
         return json({ success: true }, 200, cors);
       }
 
+
+      // Munkához csatolt fájlok – privát R2 tárolás
+      const jobAttachmentsMatch = url.pathname.match(/^\\/api\\/jobs\\/([^/]+)\\/attachments$/);
+      if (jobAttachmentsMatch && request.method === "GET") {
+        const jobId = jobAttachmentsMatch[1];
+        const job = await env.DB.prepare("SELECT id FROM jobs WHERE id = ?").bind(jobId).first();
+        if (!job) return json({ error: "A munka nem található." }, 404, cors);
+        const result = await env.DB.prepare(
+          "SELECT id, job_id, file_name, content_type, file_size, created_at FROM attachments WHERE job_id = ? ORDER BY created_at DESC"
+        ).bind(jobId).all();
+        return json({ items: result.results || [] }, 200, cors);
+      }
+
+      if (jobAttachmentsMatch && request.method === "POST") {
+        if (!env.FILES) return json({ error: "A fájltároló nincs konfigurálva." }, 500, cors);
+        const jobId = jobAttachmentsMatch[1];
+        const job = await env.DB.prepare("SELECT id FROM jobs WHERE id = ?").bind(jobId).first();
+        if (!job) return json({ error: "A munka nem található." }, 404, cors);
+        const form = await request.formData();
+        const file = form.get("file");
+        if (!(file instanceof File) || !file.size) return json({ error: "Válassz ki egy fájlt." }, 400, cors);
+        if (file.size > 10 * 1024 * 1024) return json({ error: "A fájl legfeljebb 10 MB lehet." }, 400, cors);
+        const allowedTypes = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+        if (!allowedTypes.includes(file.type)) return json({ error: "Csak JPG, PNG, WebP vagy PDF fájl tölthető fel." }, 400, cors);
+        const safeName = String(file.name || "csatolmany").replace(/[\\\\/\\r\\n\\0]/g, "_").slice(0, 180);
+        const id = crypto.randomUUID();
+        const key = "jobs/" + jobId + "/" + id;
+        await env.FILES.put(key, file.stream(), {
+          httpMetadata: { contentType: file.type },
+          customMetadata: { originalName: safeName }
+        });
+        try {
+          await env.DB.prepare(
+            "INSERT INTO attachments (id, job_id, object_key, file_name, content_type, file_size, visibility) VALUES (?, ?, ?, ?, ?, ?, 'private')"
+          ).bind(id, jobId, key, safeName, file.type, file.size).run();
+        } catch (error) {
+          await env.FILES.delete(key);
+          throw error;
+        }
+        return json({ success: true, id, file_name: safeName }, 201, cors);
+      }
+
+      const attachmentMatch = url.pathname.match(/^\\/api\\/attachments\\/([^/]+)$/);
+      if (attachmentMatch && request.method === "GET") {
+        if (!env.FILES) return json({ error: "A fájltároló nincs konfigurálva." }, 500, cors);
+        const attachment = await env.DB.prepare("SELECT * FROM attachments WHERE id = ?")
+          .bind(attachmentMatch[1]).first();
+        if (!attachment || !attachment.job_id) return json({ error: "A csatolmány nem található." }, 404, cors);
+        const object = await env.FILES.get(attachment.object_key);
+        if (!object) return json({ error: "A fájl nem található a tárhelyen." }, 404, cors);
+        const safeName = attachment.file_name.replace(/["\\\\\\r\\n]/g, "_");
+        return new Response(object.body, {
+          status: 200,
+          headers: {
+            ...cors,
+            "Content-Type": attachment.content_type,
+            "Content-Length": String(attachment.file_size),
+            "Content-Disposition": "attachment; filename*=UTF-8''" + encodeURIComponent(safeName),
+            "Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff"
+          }
+        });
+      }
+
+      if (attachmentMatch && request.method === "DELETE") {
+        if (!env.FILES) return json({ error: "A fájltároló nincs konfigurálva." }, 500, cors);
+        const attachment = await env.DB.prepare("SELECT id, object_key FROM attachments WHERE id = ?")
+          .bind(attachmentMatch[1]).first();
+        if (!attachment) return json({ error: "A csatolmány nem található." }, 404, cors);
+        await env.FILES.delete(attachment.object_key);
+        await env.DB.prepare("DELETE FROM attachments WHERE id = ?").bind(attachment.id).run();
+        return json({ success: true }, 200, cors);
+      }
+
       return json(
         { error: "Ismeretlen végpont." },
         404,
