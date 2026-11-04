@@ -386,9 +386,9 @@ export default {
         const installed = String(data.installed_on || "").trim() || null;
         const lastService = String(data.last_service_on || "").trim() || null;
         let nextService = String(data.next_service_on || "").trim() || null;
-        if (installed && !/^\\d{4}-\\d{2}-\\d{2}$/.test(installed)) return json({error:"Érvénytelen telepítési dátum."},400,cors);
-        if (lastService && !/^\\d{4}-\\d{2}-\\d{2}$/.test(lastService)) return json({error:"Érvénytelen utolsó karbantartási dátum."},400,cors);
-        if (nextService && !/^\\d{4}-\\d{2}-\\d{2}$/.test(nextService)) return json({error:"Érvénytelen következő karbantartási dátum."},400,cors);
+        if (installed && !/^\d{4}-\d{2}-\d{2}$/.test(installed)) return json({error:"Érvénytelen telepítési dátum."},400,cors);
+        if (lastService && !/^\d{4}-\d{2}-\d{2}$/.test(lastService)) return json({error:"Érvénytelen utolsó karbantartási dátum."},400,cors);
+        if (nextService && !/^\d{4}-\d{2}-\d{2}$/.test(nextService)) return json({error:"Érvénytelen következő karbantartási dátum."},400,cors);
         if (!nextService && lastService) {
           const [y,m,d] = lastService.split("-").map(Number);
           const monthIndex = m - 1 + 6;
@@ -412,7 +412,7 @@ export default {
         return json({ success: true, id }, 201, cors);
       }
 
-      const maintenanceMatch = url.pathname.match(/^\\/api\\/maintenance\\/([^/]+)$/);
+      const maintenanceMatch = url.pathname.match(/^\/api\/maintenance\/([^/]+)$/);
       if (maintenanceMatch && request.method === "PUT") {
         const id = maintenanceMatch[1];
         const data = await readBody(request) || {};
@@ -424,9 +424,9 @@ export default {
         const installed = String(data.installed_on || "").trim() || null;
         const lastService = String(data.last_service_on || "").trim() || null;
         let nextService = String(data.next_service_on || "").trim() || null;
-        if ((installed && !/^\\d{4}-\\d{2}-\\d{2}$/.test(installed)) ||
-            (lastService && !/^\\d{4}-\\d{2}-\\d{2}$/.test(lastService)) ||
-            (nextService && !/^\\d{4}-\\d{2}-\\d{2}$/.test(nextService))) {
+        if ((installed && !/^\d{4}-\d{2}-\d{2}$/.test(installed)) ||
+            (lastService && !/^\d{4}-\d{2}-\d{2}$/.test(lastService)) ||
+            (nextService && !/^\d{4}-\d{2}-\d{2}$/.test(nextService))) {
           return json({error:"Érvénytelen dátumformátum."},400,cors);
         }
         if (!nextService && lastService) {
@@ -1603,7 +1603,7 @@ if (jobMatch && request.method === "DELETE") {
         if (!verifiedType || verifiedType !== file.type) {
           return json({ error: "A fájl tartalma nem egyezik a kiválasztott fájltípussal. Kérlek, valódi JPG, PNG, WebP vagy PDF fájlt válassz." }, 400, cors);
         }
-        const safeName = String(file.name || "csatolmany").replace(/[\\/\r\n\0]/g, "_").slice(0, 180);
+        const safeName = String(file.name || "csatolmany").replace(/[\/\r\n\0]/g, "_").slice(0, 180);
         const id = crypto.randomUUID();
         const key = "jobs/" + jobId + "/" + id;
         await env.FILES.put(key, file.stream(), {
