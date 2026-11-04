@@ -666,12 +666,92 @@ showMessage(
   }
 
 
+
+  function escapePrintHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({
+      '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+    })[char]);
+  }
+
+  async function printJobSheet(job) {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('A böngésző blokkolta a felugró ablakot. Engedélyezd a felugró ablakokat a CRM oldalán.');
+      return;
+    }
+    printWindow.document.write('<!doctype html><html lang="hu"><head><meta charset="utf-8"><title>Nemesvill munkalap</title></head><body><p>Adatok betöltése...</p></body></html>');
+    try {
+      const [costData, workData, incomeData] = await Promise.all([
+        api('/api/jobs/' + encodeURIComponent(job.id) + '/costs'),
+        api('/api/jobs/' + encodeURIComponent(job.id) + '/work-logs'),
+        api('/api/jobs/' + encodeURIComponent(job.id) + '/income')
+      ]);
+      const money = value => formatHuf(value);
+      const workRows = (workData.items || []).map(item =>
+        '<tr><td>' + escapePrintHtml(item.work_date) + '</td><td>' +
+        escapePrintHtml(item.start_time || '') + ' – ' + escapePrintHtml(item.end_time || '') +
+        '</td><td>' + escapePrintHtml(item.task_description) + '</td><td>' +
+        Math.floor(Number(item.duration_minutes || 0)/60) + ' óra ' +
+        (Number(item.duration_minutes || 0)%60) + ' perc</td><td>' +
+        escapePrintHtml(item.notes || '') + '</td></tr>'
+      ).join('');
+      const costRows = (costData.items || []).map(item =>
+        '<tr><td>' + escapePrintHtml(({material:'Anyag',labor:'Munkadíj',travel:'Kiszállás',other:'Egyéb'})[item.cost_type] || item.cost_type) +
+        '</td><td>' + escapePrintHtml(item.description) + '</td><td>' +
+        escapePrintHtml(item.quantity + ' ' + item.unit) + '</td><td>' +
+        money(item.unit_net_cost) + '</td><td>' +
+        money(Math.round(Number(item.quantity)*Number(item.unit_net_cost))) + '</td></tr>'
+      ).join('');
+      const incomeRows = (incomeData.items || []).map(item =>
+        '<tr><td>' + escapePrintHtml(item.income_date) + '</td><td>' +
+        escapePrintHtml(item.invoice_number || '') + '</td><td>' +
+        escapePrintHtml(item.description) + '</td><td>' + money(item.gross_amount) +
+        '</td><td>' + (item.paid ? 'Fizetve' : 'Fizetetlen') + '</td></tr>'
+      ).join('');
+      const t = costData.totals || {};
+      const customer = job.customer_company_name || job.customer_name || '—';
+      const html = '<!doctype html><html lang="hu"><head><meta charset="utf-8"><title>' +
+        escapePrintHtml(job.job_number || 'Munkalap') +
+        '</title><style>body{font:13px/1.45 Arial,sans-serif;color:#17212b;margin:28px}header{display:flex;justify-content:space-between;border-bottom:3px solid #18a9a5;padding-bottom:12px}h1{font-size:24px;margin:0;color:#087f7b}h2{font-size:16px;margin:22px 0 8px;border-bottom:1px solid #ccd5dc;padding-bottom:5px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:16px 0}.meta div{padding:5px 0}table{width:100%;border-collapse:collapse;margin:8px 0 18px}th,td{border:1px solid #cbd3da;padding:6px;text-align:left;vertical-align:top}th{background:#edf3f5}.totals{margin:16px 0;padding:12px;background:#edf5f5}.sign{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:70px}.sign div{border-top:1px solid #555;padding-top:7px;text-align:center}.muted{color:#52616c;font-size:11px}@media print{body{margin:12mm}button{display:none}}</style></head><body>' +
+        '<header><div><h1>NEMESVILL</h1><div>Villanyszerelés · Klímaszerelés · EV-töltő telepítés</div></div><div><strong>MUNKALAP</strong><br>' +
+        escapePrintHtml(job.job_number || '') + '</div></header>' +
+        '<div class="meta"><div><strong>Ügyfél:</strong> ' + escapePrintHtml(customer) +
+        '</div><div><strong>Szolgáltatás:</strong> ' + escapePrintHtml(job.service_type || '') +
+        '</div><div><strong>Munkavégzés helye:</strong> ' + escapePrintHtml(job.address_text || '') +
+        '</div><div><strong>Munka megnevezése:</strong> ' + escapePrintHtml(job.title || '') +
+        '</div><div><strong>Tervezett kezdés:</strong> ' + escapePrintHtml(job.scheduled_start || '—') +
+        '</div><div><strong>Tervezett befejezés:</strong> ' + escapePrintHtml(job.scheduled_end || '—') +
+        '</div></div><h2>Elvégzett feladatok és munkaidő</h2><table><thead><tr><th>Dátum</th><th>Idő</th><th>Feladat</th><th>Munkaidő</th><th>Megjegyzés</th></tr></thead><tbody>' +
+        (workRows || '<tr><td colspan="5">Nincs rögzített munkanapló.</td></tr>') +
+        '</tbody></table><h2>Költségek</h2><table><thead><tr><th>Típus</th><th>Megnevezés</th><th>Mennyiség</th><th>Egységköltség</th><th>Összesen</th></tr></thead><tbody>' +
+        (costRows || '<tr><td colspan="5">Nincs rögzített költség.</td></tr>') +
+        '</tbody></table><h2>Bevételek és számlák</h2><table><thead><tr><th>Dátum</th><th>Számlaszám</th><th>Megnevezés</th><th>Összeg</th><th>Fizetési állapot</th></tr></thead><tbody>' +
+        (incomeRows || '<tr><td colspan="5">Nincs rögzített bevétel.</td></tr>') +
+        '</tbody></table><div class="totals"><strong>Bevétel:</strong> ' + money(t.income) +
+        ' &nbsp; <strong>Költség:</strong> ' + money(t.total_cost) +
+        ' &nbsp; <strong>Eredmény:</strong> ' + money(t.result) +
+        '<br><span class="muted">Adózási megjelölés: AAM – alanyi adómentes. Ez a munkalap belső nyilvántartás, nem számla és nem helyettesíti a számlát.</span></div>' +
+        '<div class="sign"><div>Megrendelő aláírása</div><div>Vállalkozó aláírása</div></div><p class="muted">Készült: ' +
+        escapePrintHtml(new Date().toLocaleString('hu-HU')) + '</p><script>window.addEventListener("load",()=>window.print());</script></body></html>';
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+    } catch (error) {
+      printWindow.document.body.textContent = 'A munkalap összeállítása nem sikerült: ' + error.message;
+    }
+  }
+
   async function toggleJobSheet(job, card) {
     const old = card.querySelector('.job-sheet-panel');
     if (old) { old.remove(); return; }
     const panel = document.createElement('section');
     panel.className = 'job-sheet-panel';
+    const printButton = document.createElement('button');
+    printButton.type = 'button';
+    printButton.textContent = 'Munkalap nyomtatása / PDF';
+    printButton.addEventListener('click', () => printJobSheet(job));
     panel.innerHTML = '<h4>Munkalap és költségek</h4><p class="muted">Betöltés...</p>';
+    panel.append(printButton);
     card.append(panel);
     try {
       const data = await api('/api/jobs/' + encodeURIComponent(job.id) + '/costs');
