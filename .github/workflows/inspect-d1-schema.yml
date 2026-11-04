@@ -1,0 +1,21 @@
+name: Inspect Nemesvill CRM D1 schema
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Inspect production D1 tables
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 execute nemesvill-crm --remote --command="SELECT name, sql FROM sqlite_master WHERE type = 'table' ORDER BY name; SELECT name, sql FROM sqlite_master WHERE type = 'index' ORDER BY name;"
