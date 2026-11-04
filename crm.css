@@ -19,3 +19,12 @@
 .job-wide-field{grid-column:1/-1}
 .job-sheet-panel h4{margin-top:18px}
 .job-sheet-panel textarea{width:100%;min-height:64px}
+
+.financial-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:16px 0}.financial-toolbar input{max-width:190px}
+.financial-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0}.financial-card{padding:16px;border:1px solid var(--line);border-radius:12px;background:#091722}
+.financial-card span{display:block;color:var(--muted);font-size:.9rem}.financial-card strong{display:block;font-size:1.3rem;margin-top:8px}
+.financial-details{border-top:1px solid var(--line);margin-top:18px;padding-top:12px}.financial-note{color:var(--muted);font-size:.9rem}
+.expense-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.expense-form label{display:grid;gap:5px}.expense-form input[type=checkbox]{width:auto}.expense-form button{grid-column:1/-1}
+.expense-row{display:flex;justify-content:space-between;gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}.expense-row p{margin:4px 0 0}
+.expense-actions{display:flex;gap:8px;flex-wrap:wrap}.expense-actions button{margin:0}
+@media(max-width:620px){.financial-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.expense-form{grid-template-columns:1fr}.expense-row{align-items:flex-start;flex-direction:column}}
