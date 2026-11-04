@@ -684,6 +684,62 @@ showMessage(
         ' · Egyéb kiadás: ' + formatHuf(t.other_expenses) +
         ' · Eredmény: ' + formatHuf(t.result);
       panel.append(summary);
+      const workHeading = document.createElement('h4');
+      workHeading.textContent = 'Elvégzett feladatok és munkaidő';
+      panel.append(workHeading);
+      const workData = await api('/api/jobs/' + encodeURIComponent(job.id) + '/work-logs');
+      const workList = document.createElement('div');
+      workList.className = 'job-cost-list';
+      (workData.items || []).forEach(log => {
+        const row = document.createElement('div');
+        row.className = 'job-cost-row';
+        const label = document.createElement('span');
+        const hours = Math.floor(Number(log.duration_minutes || 0) / 60);
+        const mins = Number(log.duration_minutes || 0) % 60;
+        label.textContent = log.work_date + ' · ' + (log.start_time || '--:--') + '–' +
+          (log.end_time || '--:--') + ' · ' + hours + ' óra ' + mins + ' perc · ' +
+          log.task_description + (log.notes ? ' · Megjegyzés: ' + log.notes : '');
+        const del = document.createElement('button');
+        del.type = 'button'; del.className = 'secondary'; del.textContent = 'Törlés';
+        del.addEventListener('click', async () => {
+          if (!confirm('Törlöd ezt a munkanapló-bejegyzést?')) return;
+          try {
+            await api('/api/work-logs/' + encodeURIComponent(log.id), {method:'DELETE'});
+            panel.remove(); await toggleJobSheet(job, card);
+          } catch (e) { alert(e.message); }
+        });
+        row.append(label, del); workList.append(row);
+      });
+      if (!(workData.items || []).length) workList.textContent = 'Még nincs rögzített elvégzett feladat.';
+      const totalTime = document.createElement('p');
+      totalTime.className = 'muted';
+      totalTime.textContent = 'Összes rögzített munkaidő: ' +
+        Math.floor(Number(workData.total_minutes || 0) / 60) + ' óra ' +
+        (Number(workData.total_minutes || 0) % 60) + ' perc';
+      panel.append(workList, totalTime);
+      const workForm = document.createElement('form');
+      workForm.className = 'job-cost-form';
+      workForm.innerHTML =
+        '<label>Munkanap<input name="work_date" type="date" required value="' + new Date().toISOString().slice(0,10) + '"></label>' +
+        '<label>Kezdés<input name="start_time" type="time"></label>' +
+        '<label>Befejezés<input name="end_time" type="time"></label>' +
+        '<label>Munkaidő (perc)<input name="duration_minutes" type="number" min="0" max="1440" step="1" value="0" required></label>' +
+        '<label class="job-wide-field">Elvégzett feladat<input name="task_description" required maxlength="1000" placeholder="Pl. konyhai dugaljak kiépítése"></label>' +
+        '<label class="job-wide-field">Megjegyzés<textarea name="notes" rows="2" maxlength="2000"></textarea></label>' +
+        '<button type="submit">Munkanapló mentése</button>';
+      workForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        const fd = new FormData(workForm);
+        const payload = Object.fromEntries(fd.entries());
+        payload.duration_minutes = Number(payload.duration_minutes);
+        try {
+          await api('/api/jobs/' + encodeURIComponent(job.id) + '/work-logs', {
+            method:'POST', body:JSON.stringify(payload)
+          });
+          panel.remove(); await toggleJobSheet(job, card);
+        } catch (e) { alert(e.message); }
+      });
+      panel.append(workForm);
       const incomeData = await api('/api/jobs/' + encodeURIComponent(job.id) + '/income');
       const incomeHeading = document.createElement('h4');
       incomeHeading.textContent = 'Bevételek és számlák';
