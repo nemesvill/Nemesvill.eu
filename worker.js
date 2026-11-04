@@ -469,6 +469,74 @@ export default {
       }
 
 
+      // Egyszeri, admin munkamenethez kötött karbantartási tesztjelentés
+      if (url.pathname === "/api/maintenance/test-email" && request.method === "POST") {
+        if (!env.RESEND_API_KEY) return json({ error: "A Resend API-kulcs nincs beállítva." }, 500, cors);
+
+        const timeZone = "Europe/Budapest";
+        const parts = new Intl.DateTimeFormat("en-CA", {
+          timeZone, year: "numeric", month: "2-digit", day: "2-digit"
+        }).formatToParts(new Date());
+        const part = type => parts.find(item => item.type === type)?.value;
+        const today = part("year") + "-" + part("month") + "-" + part("day");
+        const limitDate = new Date(Date.UTC(Number(part("year")), Number(part("month")) - 1, Number(part("day")) + 30)).toISOString().slice(0, 10);
+        const result = await env.DB.prepare(`
+          SELECT maintenance_records.manufacturer, maintenance_records.model,
+                 maintenance_records.serial_number, maintenance_records.next_service_on,
+                 COALESCE(customers.company_name, customers.name) AS customer_name,
+                 customers.email AS customer_email, customers.phone AS customer_phone
+          FROM maintenance_records
+          INNER JOIN customers ON customers.id = maintenance_records.customer_id
+          WHERE customers.deleted_at IS NULL
+            AND maintenance_records.next_service_on IS NOT NULL
+            AND maintenance_records.next_service_on <= ?
+          ORDER BY maintenance_records.next_service_on ASC, customer_name ASC
+          LIMIT 500
+        `).bind(limitDate).all();
+        const items = result.results || [];
+        const overdue = items.filter(item => item.next_service_on < today).length;
+        const upcoming = items.length - overdue;
+        const escape = value => String(value ?? "").replace(/[&<>"']/g, char => ({
+          "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+        }[char]));
+        const huDate = value => {
+          const p = String(value || "").split("-");
+          return p.length === 3 ? p[2] + "." + p[1] + "." + p[0] : String(value || "—");
+        };
+        const rows = items.map(item => `<tr>
+          <td>${item.next_service_on < today ? "LEJÁRT" : "30 napon belül"}</td>
+          <td>${escape(huDate(item.next_service_on))}</td>
+          <td>${escape(item.customer_name || "—")}</td>
+          <td>${escape([item.manufacturer, item.model].filter(Boolean).join(" ") || "—")}</td>
+          <td>${escape(item.serial_number || "—")}</td>
+          <td>${escape(item.customer_phone || "—")}</td>
+          <td>${escape(item.customer_email || "—")}</td>
+        </tr>`).join("");
+        const html = `<div style="font-family:Arial,sans-serif">
+          <h2>Nemesvill – klímakarbantartási TESZTJELENTÉS</h2>
+          <p>Próba küldés: ${huDate(today)}</p>
+          <p>Lejárt: <b>${overdue}</b> | 30 napon belül esedékes: <b>${upcoming}</b></p>
+          ${items.length ? `<table border="1" cellpadding="7" cellspacing="0" style="border-collapse:collapse">
+            <tr><th>Állapot</th><th>Esedékesség</th><th>Ügyfél</th><th>Berendezés</th><th>Gyári szám</th><th>Telefon</th><th>E-mail</th></tr>${rows}</table>` : "<p>Nincs lejárt vagy 30 napon belül esedékes karbantartás.</p>"}
+          <p>Ez egyszeri tesztküldés a Nemesvill CRM-ből.</p></div>`;
+        const response = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: { "Authorization": "Bearer " + env.RESEND_API_KEY, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            from: "Nemesvill CRM <ertesito@send.nemesvill.eu>",
+            to: ["nemesvillany@gmail.com"],
+            subject: `Nemesvill – TESZT klímakarbantartási jelentés (${overdue} lejárt, ${upcoming} esedékes)`,
+            html
+          })
+        });
+        const responseBody = await response.text();
+        if (!response.ok) {
+          console.error("Resend test email error:", response.status, responseBody);
+          return json({ error: "A Resend nem fogadta el a teszt e-mailt.", status: response.status }, 502, cors);
+        }
+        return json({ success: true, message: "A tesztjelentést a Resend elfogadta.", counts: { overdue, upcoming }, email_id: JSON.parse(responseBody).id || null }, 200, cors);
+      }
+
       // Klímaberendezések és karbantartási időpontok
       if (url.pathname === "/api/maintenance" && request.method === "GET") {
         const result = await env.DB.prepare(`
