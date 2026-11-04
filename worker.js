@@ -191,6 +191,42 @@ async function generateJobNumber(db) {
   return `NV-${year}-${String(counter.last_number).padStart(4, "0")}`;
 }
 
+
+async function generateQuoteNumber(db) {
+  const year = new Date().getFullYear();
+  const counter = await db.prepare(`
+    INSERT INTO quote_counters (year, last_number)
+    VALUES (?, 1)
+    ON CONFLICT(year)
+    DO UPDATE SET last_number = last_number + 1
+    RETURNING last_number
+  `).bind(year).first();
+  return `NV-A-${year}-${String(counter.last_number).padStart(4, "0")}`;
+}
+
+function normalizeQuoteItems(items) {
+  if (!Array.isArray(items) || items.length === 0 || items.length > 100) {
+    throw new Error("Legalább egy, legfeljebb 100 ajánlati tétel szükséges.");
+  }
+  return items.map((item, index) => {
+    const description = String(item.description || "").trim();
+    const quantity = Number(item.quantity ?? 1);
+    const unitNetPrice = Number(item.unit_net_price ?? item.unit_price ?? 0);
+    const itemType = item.item_type || "service";
+    if (!description) throw new Error("Minden tétel megnevezése kötelező.");
+    if (!Number.isFinite(quantity) || quantity <= 0 || quantity > 1000000) throw new Error("Érvénytelen mennyiség.");
+    if (!Number.isSafeInteger(unitNetPrice) || unitNetPrice < 0) throw new Error("Az egységár csak nulla vagy pozitív egész forint lehet.");
+    if (!["material", "service", "travel", "other"].includes(itemType)) throw new Error("Érvénytelen tételtípus.");
+    const lineNet = Math.round(quantity * unitNetPrice);
+    return {
+      id: crypto.randomUUID(), sort_order: index, item_type: itemType,
+      description, quantity, unit: String(item.unit || "db").slice(0, 30),
+      unit_net_price: unitNetPrice, vat_rate: 0, line_net: lineNet,
+      line_vat: 0, line_gross: lineNet
+    };
+  });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -342,6 +378,113 @@ export default {
             leads: leads?.n || 0
           }
         }, 200, cors);
+      }
+
+      // Árajánlatok listázása
+      if (url.pathname === "/api/quotes" && request.method === "GET") {
+        const result = await env.DB.prepare(`
+          SELECT quotes.*, customers.name AS customer_name,
+                 customers.company_name AS customer_company_name
+          FROM quotes LEFT JOIN customers ON customers.id = quotes.customer_id
+          ORDER BY quotes.created_at DESC LIMIT 300
+        `).all();
+        const items = result.results || [];
+        return json({ items, quotes: items }, 200, cors);
+      }
+
+      // Új árajánlat – minden tétel AAM, az összegeket a szerver számolja
+      if (url.pathname === "/api/quotes" && request.method === "POST") {
+        const data = await readBody(request) || {};
+        if (!data.customer_id) return json({ error: "Az ügyfél kiválasztása kötelező." }, 400, cors);
+        const customer = await env.DB.prepare(
+          "SELECT id FROM customers WHERE id = ? AND deleted_at IS NULL"
+        ).bind(data.customer_id).first();
+        if (!customer) return json({ error: "Az ügyfél nem található." }, 400, cors);
+
+        if (data.lead_id) {
+          const lead = await env.DB.prepare("SELECT id, customer_id FROM leads WHERE id = ?")
+            .bind(data.lead_id).first();
+          if (!lead || (lead.customer_id && lead.customer_id !== data.customer_id)) {
+            return json({ error: "A kapcsolódó érdeklődés nem található vagy másik ügyfélhez tartozik." }, 400, cors);
+          }
+        }
+
+        let items;
+        try { items = normalizeQuoteItems(data.items); }
+        catch (error) { return json({ error: error.message }, 400, cors); }
+
+        const netTotal = items.reduce((sum, item) => sum + item.line_net, 0);
+        if (!Number.isSafeInteger(netTotal)) return json({ error: "Az ajánlat végösszege túl nagy." }, 400, cors);
+
+        const id = crypto.randomUUID();
+        const quoteNumber = await generateQuoteNumber(env.DB);
+        const issueDate = /^\\d{4}-\\d{2}-\\d{2}$/.test(data.issue_date || "")
+          ? data.issue_date : new Date().toISOString().slice(0, 10);
+        const validUntil = /^\\d{4}-\\d{2}-\\d{2}$/.test(data.valid_until || "") ? data.valid_until : null;
+
+        const statements = [env.DB.prepare(`
+          INSERT INTO quotes (
+            id, customer_id, lead_id, quote_number, status, issue_date,
+            valid_until, currency, notes, net_total, vat_total, gross_total,
+            created_at, updated_at
+          ) VALUES (?, ?, ?, ?, 'draft', ?, ?, 'HUF', ?, ?, 0, ?, datetime('now'), datetime('now'))
+        `).bind(id, data.customer_id, data.lead_id || null, quoteNumber,
+          issueDate, validUntil, data.notes ? String(data.notes).slice(0, 5000) : null,
+          netTotal, netTotal)];
+
+        for (const item of items) {
+          statements.push(env.DB.prepare(`
+            INSERT INTO quote_items (
+              id, quote_id, sort_order, item_type, description, quantity, unit,
+              unit_net_price, vat_rate, line_net, line_vat, line_gross
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0, ?)
+          `).bind(item.id, id, item.sort_order, item.item_type, item.description,
+            item.quantity, item.unit, item.unit_net_price, item.line_net, item.line_gross));
+        }
+        await env.DB.batch(statements);
+        return json({ success: true, id, quote_number: quoteNumber, tax_mode: "AAM",
+          net_total: netTotal, vat_total: 0, gross_total: netTotal }, 201, cors);
+      }
+
+      const quoteMatch = url.pathname.match(/^\\/api\\/quotes\\/([^/]+)$/);
+
+      if (quoteMatch && request.method === "GET") {
+        const quote = await env.DB.prepare("SELECT * FROM quotes WHERE id = ?")
+          .bind(quoteMatch[1]).first();
+        if (!quote) return json({ error: "Az árajánlat nem található." }, 404, cors);
+        const itemResult = await env.DB.prepare(
+          "SELECT * FROM quote_items WHERE quote_id = ? ORDER BY sort_order, rowid"
+        ).bind(quoteMatch[1]).all();
+        return json({ quote, items: itemResult.results || [], tax_mode: "AAM" }, 200, cors);
+      }
+
+      if (quoteMatch && request.method === "PUT") {
+        const id = quoteMatch[1];
+        const existing = await env.DB.prepare("SELECT * FROM quotes WHERE id = ?").bind(id).first();
+        if (!existing) return json({ error: "Az árajánlat nem található." }, 404, cors);
+        const data = await readBody(request) || {};
+        const allowed = ["draft", "sent", "accepted", "rejected", "expired", "converted"];
+        const updates = [], values = [];
+        if (data.status !== undefined) {
+          if (!allowed.includes(data.status)) return json({ error: "Érvénytelen ajánlati státusz." }, 400, cors);
+          if (existing.status === "converted" && data.status !== "converted") {
+            return json({ error: "A munkává alakított ajánlat státusza nem módosítható." }, 400, cors);
+          }
+          updates.push("status = ?"); values.push(data.status);
+        }
+        if (data.valid_until !== undefined) {
+          if (data.valid_until && !/^\\d{4}-\\d{2}-\\d{2}$/.test(data.valid_until)) {
+            return json({ error: "Érvénytelen érvényességi dátum." }, 400, cors);
+          }
+          updates.push("valid_until = ?"); values.push(data.valid_until || null);
+        }
+        if (data.notes !== undefined) {
+          updates.push("notes = ?"); values.push(data.notes === null ? null : String(data.notes).slice(0, 5000));
+        }
+        if (!updates.length) return json({ error: "Nincs módosítandó adat." }, 400, cors);
+        updates.push("updated_at = datetime('now')");
+        await env.DB.prepare(`UPDATE quotes SET ${updates.join(", ")} WHERE id = ?`).bind(...values, id).run();
+        return json({ success: true, id }, 200, cors);
       }
 
       // Ügyfelek listázása
