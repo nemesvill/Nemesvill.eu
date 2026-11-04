@@ -684,6 +684,68 @@ showMessage(
         ' · Egyéb kiadás: ' + formatHuf(t.other_expenses) +
         ' · Eredmény: ' + formatHuf(t.result);
       panel.append(summary);
+      const incomeData = await api('/api/jobs/' + encodeURIComponent(job.id) + '/income');
+      const incomeHeading = document.createElement('h4');
+      incomeHeading.textContent = 'Bevételek és számlák';
+      panel.append(incomeHeading);
+      const incomeList = document.createElement('div');
+      incomeList.className = 'job-cost-list';
+      (incomeData.items || []).forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'job-cost-row';
+        const label = document.createElement('span');
+        label.textContent = item.income_date + ' · ' + (item.invoice_number || 'Számlaszám nincs megadva') +
+          ' · ' + item.description + ' · ' + formatHuf(item.gross_amount) +
+          ' · ' + (item.paid ? 'Fizetve' : 'Fizetetlen');
+        const actions = document.createElement('div');
+        actions.className = 'job-income-actions';
+        const paidButton = document.createElement('button');
+        paidButton.type = 'button'; paidButton.className = 'secondary';
+        paidButton.textContent = item.paid ? 'Fizetetlenre állít' : 'Fizetettnek jelöl';
+        paidButton.addEventListener('click', async () => {
+          try {
+            await api('/api/income-records/' + encodeURIComponent(item.id), {
+              method:'PUT', body:JSON.stringify({invoice_number:item.invoice_number, paid:!item.paid})
+            });
+            panel.remove(); await toggleJobSheet(job, card);
+          } catch (e) { alert(e.message); }
+        });
+        const deleteIncome = document.createElement('button');
+        deleteIncome.type = 'button'; deleteIncome.className = 'secondary'; deleteIncome.textContent = 'Törlés';
+        deleteIncome.addEventListener('click', async () => {
+          if (!confirm('Törlöd ezt a bevételi tételt?')) return;
+          try {
+            await api('/api/income-records/' + encodeURIComponent(item.id), {method:'DELETE'});
+            panel.remove(); await toggleJobSheet(job, card);
+          } catch (e) { alert(e.message); }
+        });
+        actions.append(paidButton, deleteIncome); row.append(label, actions); incomeList.append(row);
+      });
+      if (!(incomeData.items || []).length) incomeList.textContent = 'Még nincs rögzített bevétel.';
+      panel.append(incomeList);
+      const incomeForm = document.createElement('form');
+      incomeForm.className = 'job-cost-form';
+      incomeForm.innerHTML =
+        '<label>Számlaszám<input name="invoice_number" maxlength="100" placeholder="Pl. NV-2026-001"></label>' +
+        '<label>Dátum<input name="income_date" type="date" required value="' + new Date().toISOString().slice(0,10) + '"></label>' +
+        '<label>Megnevezés<input name="description" required maxlength="500" placeholder="Pl. klímaszerelés munkadíja"></label>' +
+        '<label>Számla összege (Ft)<input name="gross_amount" type="number" min="1" step="1" required></label>' +
+        '<label class="job-income-paid"><input name="paid" type="checkbox" value="1"> Már ki van fizetve</label>' +
+        '<button type="submit">Bevétel mentése</button>';
+      incomeForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        const fd = new FormData(incomeForm);
+        const payload = Object.fromEntries(fd.entries());
+        payload.gross_amount = Number(payload.gross_amount);
+        payload.paid = fd.has('paid');
+        try {
+          await api('/api/jobs/' + encodeURIComponent(job.id) + '/income', {
+            method:'POST', body:JSON.stringify(payload)
+          });
+          panel.remove(); await toggleJobSheet(job, card);
+        } catch (e) { alert(e.message); }
+      });
+      panel.append(incomeForm);
       const list = document.createElement('div');
       list.className = 'job-cost-list';
       (data.items || []).forEach(item => {
