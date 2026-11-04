@@ -7,3 +7,7 @@ keep_vars = true
 binding = "DB"
 database_name = "nemesvill-crm"
 database_id = "01577951-8af9-4d8c-8b59-3d2a3cb7ae01"
+
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "nemesvill-crm-files"
