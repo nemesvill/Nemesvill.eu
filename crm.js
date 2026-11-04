@@ -1161,6 +1161,23 @@ if (newJobButton) {
       printButton.type = 'button'; printButton.className = 'secondary'; printButton.textContent = 'Nyomtatás / PDF';
       printButton.addEventListener('click', () => printQuote(q.id));
       actions.append(editButton, printButton);
+      if (q.status === 'accepted') {
+        const convertButton = document.createElement('button');
+        convertButton.type = 'button'; convertButton.textContent = 'Munka létrehozása';
+        convertButton.addEventListener('click', async () => {
+          if (!confirm('Biztosan létrehozod a munkát az elfogadott árajánlat alapján?')) return;
+          convertButton.disabled = true;
+          try {
+            const result = await api('/api/quotes/' + encodeURIComponent(q.id) + '/convert', {method:'POST'});
+            showMessage(quoteListMessage, 'Munka létrehozva: ' + result.job_number, 'success');
+            await Promise.all([loadQuotes(), loadJobs()]);
+          } catch(error) {
+            showMessage(quoteListMessage, error.message, 'error');
+            convertButton.disabled = false;
+          }
+        });
+        actions.append(convertButton);
+      }
       card.append(heading, details, total, statusLabelNode, actions);
       quoteList.append(card);
     });
