@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Nemesvill CRM – Ügyviteli rendszer</title>
   <link rel="stylesheet" href="crm.css">
- <script src="crm.js?v=20261103-9" defer></script>
+ <script src="crm.js?v=20261104-10" defer></script>
 </head>
 <body>
   <main class="shell">
@@ -344,6 +344,55 @@
 </section>
 
       
+
+<!-- ÁRAJÁNLATOK -->
+<section class="panel coming-panel" id="quotesSection">
+  <div class="eyebrow">AJÁNLATADÁS ÉS ÉRTÉKESÍTÉS</div>
+  <h2>Árajánlatok</h2>
+  <p class="muted">Ajánlatok készítése és nyomon követése. Adózási mód: AAM – alanyi adómentes.</p>
+
+  <div class="customer-toolbar">
+    <input type="search" id="quoteSearch" placeholder="Keresés ajánlatszám vagy ügyfél alapján…" aria-label="Árajánlatok keresése">
+    <button type="button" id="newQuoteButton">+ Új árajánlat</button>
+  </div>
+
+  <div id="quoteFormPanel" hidden>
+    <h3>Új árajánlat készítése</h3>
+    <form id="quoteForm">
+      <label for="quoteCustomer">Ügyfél *</label>
+      <select id="quoteCustomer" required><option value="">Ügyfél kiválasztása</option></select>
+
+      <label for="quoteLead">Kapcsolódó érdeklődés</label>
+      <select id="quoteLead"><option value="">Nincs kapcsolódó érdeklődés</option></select>
+
+      <label for="quoteIssueDate">Kiállítás dátuma</label>
+      <input id="quoteIssueDate" type="date">
+
+      <label for="quoteValidUntil">Ajánlat érvényessége</label>
+      <input id="quoteValidUntil" type="date">
+
+      <h3>Tételek</h3>
+      <div id="quoteItems"></div>
+      <button type="button" class="secondary" id="addQuoteItemButton">+ Tétel hozzáadása</button>
+
+      <label for="quoteNotes">Megjegyzés</label>
+      <textarea id="quoteNotes" rows="3" maxlength="5000"></textarea>
+
+      <p><strong>ÁFA: AAM (alanyi adómentes)</strong></p>
+      <p>Fizetendő összeg: <strong id="quoteTotalPreview">0 Ft</strong></p>
+
+      <div class="customer-actions">
+        <button type="submit" id="saveQuoteButton">Árajánlat mentése</button>
+        <button type="button" class="secondary" id="cancelQuoteButton">Mégse</button>
+      </div>
+      <p id="quoteFormMessage" class="message" role="status"></p>
+    </form>
+  </div>
+
+  <div id="quoteListMessage" class="message" role="status"></div>
+  <div id="quoteList"><p class="muted">Árajánlatok betöltése…</p></div>
+</section>
+
       <p id="dashboardMessage" class="message"
         role="status" aria-live="polite"></p>
     </section>
