@@ -1,0 +1,1045 @@
+
+const ALLOWED_ORIGINS = [
+  "https://nemesvill.eu",
+  "https://www.nemesvill.eu"
+];
+
+const COOKIE_NAME = "nemesvill_session";
+const SESSION_SECONDS = 8 * 60 * 60;
+
+const CUSTOMER_FIELDS = [
+  "customer_type",
+  "name",
+  "company_name",
+  "tax_number",
+  "email",
+  "phone",
+  "postal_code",
+  "city",
+  "street_address",
+  "notes"
+];
+
+const LEAD_FIELDS = [
+  "customer_id",
+  "service_type",
+  "source",
+  "status",
+  "subject",
+  "description",
+  "preferred_date",
+  "location_text",
+  "follow_up_at"
+];
+
+const JOB_FIELDS = [
+  "customer_id",
+  "lead_id",
+  "service_type",
+  "status",
+  "title",
+  "description",
+  "scheduled_start",
+  "scheduled_end",
+  "address_text",
+  "labor_minutes",
+  "notes"
+];
+
+function json(data, status = 200, extra = {}) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+      ...extra
+    }
+  });
+}
+
+function corsHeaders(origin) {
+  if (!ALLOWED_ORIGINS.includes(origin)) return {};
+
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Vary": "Origin"
+  };
+}
+
+function base64url(bytes) {
+  let binary = "";
+  for (const b of bytes) {
+    binary += String.fromCharCode(b);
+  }
+
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function decodeBase64url(value) {
+  const s = value.replace(/-/g, "+").replace(/_/g, "/");
+
+  return Uint8Array.from(
+    atob(s + "=".repeat((4 - s.length % 4) % 4)),
+    c => c.charCodeAt(0)
+  );
+}
+
+async function sign(value, secret) {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(value)
+  );
+
+  return base64url(new Uint8Array(signature));
+}
+
+async function createSession(env) {
+  const payload = base64url(
+    new TextEncoder().encode(
+      JSON.stringify({
+        email: env.ADMIN_EMAIL,
+        exp: Math.floor(Date.now() / 1000) + SESSION_SECONDS
+      })
+    )
+  );
+
+  return payload + "." + await sign(payload, env.SESSION_SECRET);
+}
+
+async function verifySession(request, env) {
+  const raw = request.headers.get("Cookie") || "";
+  const match = raw.match(/(?:^|;\s*)nemesvill_session=([^;]+)/);
+
+  if (!match) return false;
+
+  try {
+    const parts = match[1].split(".");
+    if (parts.length !== 2) return false;
+
+    const [payload, signature] = parts;
+    const expected = await sign(payload, env.SESSION_SECRET);
+
+    if (signature !== expected) return false;
+
+    const data = JSON.parse(
+      new TextDecoder().decode(decodeBase64url(payload))
+    );
+
+    return (
+      data.email === env.ADMIN_EMAIL &&
+      data.exp > Math.floor(Date.now() / 1000)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function cookie(value, maxAge) {
+  return `${COOKIE_NAME}=${value}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${maxAge}`;
+}
+
+async function readBody(request) {
+  try {
+    return await request.json();
+  } catch {
+    return null;
+  }
+}
+
+function cleanFields(input, allowed) {
+  const out = {};
+
+  for (const key of allowed) {
+    if (Object.prototype.hasOwnProperty.call(input || {}, key)) {
+      out[key] = input[key] === "" ? null : input[key];
+    }
+  }
+
+  return out;
+}
+
+function placeholders(n) {
+  return Array(n).fill("?").join(", ");
+}
+
+async function generateJobNumber(db) {
+  const year = new Date().getFullYear();
+
+  const counter = await db.prepare(`
+    INSERT INTO job_counters (year, last_number)
+    VALUES (?, 1)
+    ON CONFLICT(year)
+    DO UPDATE SET last_number = last_number + 1
+    RETURNING last_number
+  `).bind(year).first();
+
+  return `NV-${year}-${String(counter.last_number).padStart(4, "0")}`;
+}
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    const origin = request.headers.get("Origin") || "";
+    const cors = corsHeaders(origin);
+
+    if (request.method === "OPTIONS") {
+      return cors["Access-Control-Allow-Origin"]
+        ? new Response(null, { status: 204, headers: cors })
+        : new Response(null, { status: 403 });
+    }
+
+    if (
+      !env.DB ||
+      !env.ADMIN_EMAIL ||
+      !env.ADMIN_PASSWORD ||
+      !env.SESSION_SECRET
+    ) {
+      return json(
+        { error: "Server configuration error. Check DB binding and secrets." },
+        500,
+        cors
+      );
+    }
+
+    // API állapot
+    if (url.pathname === "/" && request.method === "GET") {
+      return json({
+        name: "Nemesvill CRM API",
+        status: "running",
+        version: "2.0.0"
+      }, 200, cors);
+    }
+
+    // Bejelentkezés
+    if (url.pathname === "/api/login" && request.method === "POST") {
+      if (!cors["Access-Control-Allow-Origin"]) {
+        return json({ error: "Origin not allowed." }, 403);
+      }
+
+      const data = await readBody(request);
+
+      if (
+        !data ||
+        typeof data.email !== "string" ||
+        typeof data.password !== "string"
+      ) {
+        return json(
+          { error: "Érvénytelen belépési adatok." },
+          400,
+          cors
+        );
+      }
+
+      if (
+        data.email.trim().toLowerCase() !==
+          env.ADMIN_EMAIL.trim().toLowerCase() ||
+        data.password !== env.ADMIN_PASSWORD
+      ) {
+        return json(
+          { error: "Hibás e-mail-cím vagy jelszó." },
+          401,
+          cors
+        );
+      }
+
+      const session = await createSession(env);
+
+      return json(
+        { success: true },
+        200,
+        {
+          ...cors,
+          "Set-Cookie": cookie(session, SESSION_SECONDS)
+        }
+      );
+    }
+
+    // Munkamenet ellenőrzése
+    if (url.pathname === "/api/session" && request.method === "GET") {
+      const valid = await verifySession(request, env);
+
+      if (!valid) {
+        return json(
+          { error: "Nincs érvényes bejelentkezés." },
+          401,
+          cors
+        );
+      }
+
+      return json(
+        { success: true, email: env.ADMIN_EMAIL },
+        200,
+        cors
+      );
+    }
+
+    // Kijelentkezés
+    if (url.pathname === "/api/logout" && request.method === "POST") {
+      return json(
+        { success: true },
+        200,
+        {
+          ...cors,
+          "Set-Cookie": cookie("", 0)
+        }
+      );
+    }
+
+    const authenticated = await verifySession(request, env);
+
+    if (url.pathname === "/api/admin/check" && request.method === "GET") {
+      return json(
+        { authenticated },
+        authenticated ? 200 : 401,
+        cors
+      );
+    }
+
+    if (!authenticated) {
+      return json({ error: "Nincs bejelentkezve." }, 401, cors);
+    }
+
+    try {
+      // Adatbázis ellenőrzése
+      if (url.pathname === "/api/db-check" && request.method === "GET") {
+        const result = await env.DB.prepare("SELECT 1 AS ok").first();
+
+        return json({
+          success: true,
+          database: "connected",
+          test: result?.ok === 1
+        }, 200, cors);
+      }
+
+      // Vezérlőpult számlálói
+      if (url.pathname === "/api/dashboard" && request.method === "GET") {
+        const customers = await env.DB.prepare(
+          "SELECT COUNT(*) AS n FROM customers WHERE deleted_at IS NULL"
+        ).first();
+
+        const leads = await env.DB.prepare(
+          "SELECT COUNT(*) AS n FROM leads"
+        ).first();
+
+        return json({
+          counts: {
+            customers: customers?.n || 0,
+            leads: leads?.n || 0
+          }
+        }, 200, cors);
+      }
+
+      // Ügyfelek listázása
+      if (url.pathname === "/api/customers" && request.method === "GET") {
+        const q = (url.searchParams.get("q") || "").trim();
+
+        let result;
+
+        if (q) {
+          result = await env.DB.prepare(
+            `SELECT * FROM customers
+             WHERE deleted_at IS NULL
+             AND (
+               name LIKE ? OR
+               company_name LIKE ? OR
+               phone LIKE ? OR
+               email LIKE ?
+             )
+             ORDER BY created_at DESC
+             LIMIT 200`
+          )
+            .bind(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`)
+            .all();
+        } else {
+          result = await env.DB.prepare(
+            `SELECT * FROM customers
+             WHERE deleted_at IS NULL
+             ORDER BY created_at DESC
+             LIMIT 200`
+          ).all();
+        }
+
+        const items = result.results || [];
+
+        return json({
+          items,
+          customers: items
+        }, 200, cors);
+      }
+
+      // Új ügyfél mentése
+      if (url.pathname === "/api/customers" && request.method === "POST") {
+        const data = cleanFields(
+          await readBody(request),
+          CUSTOMER_FIELDS
+        );
+
+        if (!data.name || !String(data.name).trim()) {
+          return json(
+            { error: "Az ügyfél neve kötelező." },
+            400,
+            cors
+          );
+        }
+
+        if (!data.customer_type) data.customer_type = "person";
+        if (data.customer_type === "private") {
+          data.customer_type = "person";
+        }
+
+        const id = crypto.randomUUID();
+        const keys = ["id", ...Object.keys(data)];
+        const values = [id, ...Object.keys(data).map(k => data[k])];
+
+        await env.DB.prepare(
+          `INSERT INTO customers (
+            ${keys.join(",")},
+            created_at,
+            updated_at
+          )
+          VALUES (
+            ${placeholders(keys.length)},
+            datetime('now'),
+            datetime('now')
+          )`
+        )
+          .bind(...values)
+          .run();
+
+        return json({ success: true, id }, 201, cors);
+      }
+
+      const customerMatch = url.pathname.match(
+        /^\/api\/customers\/([^/]+)$/
+      );
+
+      // Ügyfél módosítása
+      if (customerMatch && request.method === "PUT") {
+        const id = customerMatch[1];
+        const data = cleanFields(
+          await readBody(request),
+          CUSTOMER_FIELDS
+        );
+
+        if (!data.customer_type) {
+          const existing = await env.DB.prepare(
+            "SELECT customer_type FROM customers WHERE id = ? AND deleted_at IS NULL"
+          ).bind(id).first();
+
+          if (!existing) {
+            return json(
+              { error: "Az ügyfél nem található." },
+              404,
+              cors
+            );
+          }
+
+          data.customer_type = existing.customer_type;
+        }
+
+        if (data.customer_type === "private") {
+          data.customer_type = "person";
+        }
+
+        const keys = Object.keys(data);
+
+        if (!keys.length) {
+          return json(
+            { error: "Nincs módosítandó adat." },
+            400,
+            cors
+          );
+        }
+
+        const result = await env.DB.prepare(
+          `UPDATE customers
+           SET ${keys.map(k => `${k} = ?`).join(", ")},
+           updated_at = datetime('now')
+           WHERE id = ? AND deleted_at IS NULL`
+        )
+          .bind(...keys.map(k => data[k]), id)
+          .run();
+
+        return json({
+          success: true,
+          changes: result.meta.changes
+        }, 200, cors);
+      }
+
+      // Ügyfél törlése (soft delete)
+      if (customerMatch && request.method === "DELETE") {
+        const id = customerMatch[1];
+
+        const result = await env.DB.prepare(
+          `UPDATE customers
+           SET deleted_at = datetime('now'),
+               updated_at = datetime('now')
+           WHERE id = ? AND deleted_at IS NULL`
+        )
+          .bind(id)
+          .run();
+
+        return json({
+          success: true,
+          changes: result.meta.changes
+        }, 200, cors);
+      }
+
+      // Érdeklődők listázása
+      if (url.pathname === "/api/leads" && request.method === "GET") {
+        const result = await env.DB.prepare(
+          `SELECT
+             leads.*,
+             customers.name AS customer_name,
+             customers.phone AS customer_phone,
+             customers.email AS customer_email
+           FROM leads
+           LEFT JOIN customers ON customers.id = leads.customer_id
+           ORDER BY leads.created_at DESC
+           LIMIT 300`
+        ).all();
+
+        const items = result.results || [];
+
+        return json({
+          items,
+          leads: items
+        }, 200, cors);
+      }
+// Meglévő érdeklődés módosítása
+const leadMatch = url.pathname.match(/^\/api\/leads\/([^/]+)$/);
+
+if (leadMatch && request.method === "PUT") {
+  const id = leadMatch[1];
+
+  const existing = await env.DB.prepare(
+    "SELECT id FROM leads WHERE id = ?"
+  ).bind(id).first();
+
+  if (!existing) {
+    return json({ error: "Az érdeklődő nem található." }, 404, cors);
+  }
+
+  const data = cleanFields(await readBody(request), LEAD_FIELDS);
+
+  if ("subject" in data && (!data.subject || !String(data.subject).trim())) {
+    return json({ error: "A tárgy megadása kötelező." }, 400, cors);
+  }
+
+  const allowedServices = ["villanyszereles", "klimaszereles", "ev_tolto", "egyeb"];
+  const allowedSources = ["website", "phone", "email", "facebook", "referral", "manual"];
+  const allowedStatuses = ["new", "contacted", "survey", "quoted", "won", "lost", "archived"];
+
+  if (data.service_type && !allowedServices.includes(data.service_type)) {
+    return json({ error: "Érvénytelen szolgáltatástípus." }, 400, cors);
+  }
+
+  if (data.source && !allowedSources.includes(data.source)) {
+    return json({ error: "Érvénytelen forrás." }, 400, cors);
+  }
+
+  if (data.status && !allowedStatuses.includes(data.status)) {
+    return json({ error: "Érvénytelen státusz." }, 400, cors);
+  }
+
+  const keys = Object.keys(data);
+
+  if (!keys.length) {
+    return json({ error: "Nincs módosítandó adat." }, 400, cors);
+  }
+
+  const result = await env.DB.prepare(
+    `UPDATE leads SET ${keys.map(key => `${key} = ?`).join(", ")},
+     updated_at = datetime('now')
+     WHERE id = ?`
+  ).bind(...keys.map(key => data[key]), id).run();
+
+  return json({ success: true, changes: result.meta.changes }, 200, cors);
+}
+
+ // Érdeklődő törlése
+if (leadMatch && request.method === "DELETE") {
+  const id = leadMatch[1];
+
+  const existing = await env.DB.prepare(
+    "SELECT id FROM leads WHERE id = ?"
+  ).bind(id).first();
+
+  if (!existing) {
+    return json({ error: "Az érdeklődő nem található." }, 404, cors);
+  }
+
+  await env.DB.prepare(
+    "DELETE FROM leads WHERE id = ?"
+  ).bind(id).run();
+
+  return json({
+    success: true,
+    message: "Az érdeklődő sikeresen törölve."
+  }, 200, cors);
+}
+ 
+// Munkák listázása
+if (url.pathname === "/api/jobs" && request.method === "GET") {
+  const result = await env.DB.prepare(
+    `SELECT
+       jobs.*,
+       customers.name AS customer_name,
+       customers.phone AS customer_phone,
+       customers.email AS customer_email
+     FROM jobs
+     LEFT JOIN customers ON customers.id = jobs.customer_id
+     ORDER BY jobs.created_at DESC
+     LIMIT 300`
+  ).all();
+
+  const items = result.results || [];
+
+  return json({
+    items,
+    jobs: items
+  }, 200, cors);
+}
+
+// Új munka mentése
+if (url.pathname === "/api/jobs" && request.method === "POST") {
+  const data = cleanFields(
+    await readBody(request),
+    JOB_FIELDS
+  );
+
+  if (!data.customer_id) {
+    return json(
+      { error: "Az ügyfél kiválasztása kötelező." },
+      400,
+      cors
+    );
+  }
+
+  if (!data.title || !String(data.title).trim()) {
+    return json(
+      { error: "A munka megnevezése kötelező." },
+      400,
+      cors
+    );
+  }
+
+  const customer = await env.DB.prepare(
+    "SELECT id FROM customers WHERE id = ? AND deleted_at IS NULL"
+  ).bind(data.customer_id).first();
+
+  if (!customer) {
+    return json(
+      { error: "A kiválasztott ügyfél nem található." },
+      400,
+      cors
+    );
+  }
+
+  if (data.lead_id) {
+    const lead = await env.DB.prepare(
+      "SELECT id, customer_id FROM leads WHERE id = ?"
+    ).bind(data.lead_id).first();
+
+    if (!lead) {
+      return json(
+        { error: "A kapcsolódó érdeklődés nem található." },
+        400,
+        cors
+      );
+    }
+
+    if (lead.customer_id && lead.customer_id !== data.customer_id) {
+      return json(
+        { error: "Az érdeklődés másik ügyfélhez tartozik." },
+        400,
+        cors
+      );
+    }
+  }
+
+  const allowedServices = [
+    "villanyszereles",
+    "klimaszereles",
+    "ev_tolto",
+    "egyeb"
+  ];
+
+  const allowedStatuses = [
+    "planned",
+    "in_progress",
+    "waiting_material",
+    "completed",
+    "cancelled"
+  ];
+
+  if (!allowedServices.includes(data.service_type)) {
+    return json(
+      { error: "Érvénytelen szolgáltatástípus." },
+      400,
+      cors
+    );
+  }
+
+  if (!data.status) data.status = "planned";
+
+  if (!allowedStatuses.includes(data.status)) {
+    return json(
+      { error: "Érvénytelen munkastátusz." },
+      400,
+      cors
+    );
+  }
+
+  const laborMinutes = Number(data.labor_minutes ?? 0);
+
+  if (!Number.isInteger(laborMinutes) || laborMinutes < 0) {
+    return json(
+      { error: "A munkaidő csak nulla vagy pozitív egész szám lehet." },
+      400,
+      cors
+    );
+  }
+
+  data.labor_minutes = laborMinutes;
+
+  const id = crypto.randomUUID();
+  const jobNumber = await generateJobNumber(env.DB);
+
+  const keys = ["id", "job_number", ...Object.keys(data)];
+  const values = [
+    id,
+    jobNumber,
+    ...Object.keys(data).map(key => data[key])
+  ];
+
+  await env.DB.prepare(
+    `INSERT INTO jobs (
+      ${keys.join(",")},
+      completed_at,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      ${placeholders(keys.length)},
+      ${data.status === "completed" ? "datetime('now')" : "NULL"},
+      datetime('now'),
+      datetime('now')
+    )`
+  )
+    .bind(...values)
+    .run();
+
+  return json({
+    success: true,
+    id,
+    job_number: jobNumber
+  }, 201, cors);
+}
+
+// Meglévő munka módosítása
+const jobMatch = url.pathname.match(/^\/api\/jobs\/([^/]+)$/);
+
+if (jobMatch && request.method === "PUT") {
+  const id = jobMatch[1];
+
+  const existing = await env.DB.prepare(
+    "SELECT * FROM jobs WHERE id = ?"
+  ).bind(id).first();
+
+  if (!existing) {
+    return json(
+      { error: "A munka nem található." },
+      404,
+      cors
+    );
+  }
+
+  const data = cleanFields(
+    await readBody(request),
+    JOB_FIELDS
+  );
+
+  if (Object.keys(data).length === 0) {
+    return json(
+      { error: "Nincs módosítandó adat." },
+      400,
+      cors
+    );
+  }
+
+  const customerId = data.customer_id ?? existing.customer_id;
+  const leadId = data.lead_id ?? existing.lead_id;
+
+  const customer = await env.DB.prepare(
+    "SELECT id FROM customers WHERE id = ? AND deleted_at IS NULL"
+  ).bind(customerId).first();
+
+  if (!customer) {
+    return json(
+      { error: "A kiválasztott ügyfél nem található." },
+      400,
+      cors
+    );
+  }
+
+  if (leadId) {
+    const lead = await env.DB.prepare(
+      "SELECT id, customer_id FROM leads WHERE id = ?"
+    ).bind(leadId).first();
+
+    if (!lead) {
+      return json(
+        { error: "A kapcsolódó érdeklődés nem található." },
+        400,
+        cors
+      );
+    }
+
+    if (lead.customer_id && lead.customer_id !== customerId) {
+      return json(
+        { error: "Az érdeklődés másik ügyfélhez tartozik." },
+        400,
+        cors
+      );
+    }
+  }
+
+  const allowedServices = [
+    "villanyszereles",
+    "klimaszereles",
+    "ev_tolto",
+    "egyeb"
+  ];
+
+  const allowedStatuses = [
+    "planned",
+    "in_progress",
+    "waiting_material",
+    "completed",
+    "cancelled"
+  ];
+
+  if (
+    data.service_type &&
+    !allowedServices.includes(data.service_type)
+  ) {
+    return json(
+      { error: "Érvénytelen szolgáltatástípus." },
+      400,
+      cors
+    );
+  }
+
+  if (
+    data.status &&
+    !allowedStatuses.includes(data.status)
+  ) {
+    return json(
+      { error: "Érvénytelen munkastátusz." },
+      400,
+      cors
+    );
+  }
+
+  if (
+    data.title !== undefined &&
+    !String(data.title || "").trim()
+  ) {
+    return json(
+      { error: "A munka megnevezése kötelező." },
+      400,
+      cors
+    );
+  }
+
+  if (data.labor_minutes !== undefined) {
+    const minutes = Number(data.labor_minutes);
+
+    if (!Number.isInteger(minutes) || minutes < 0) {
+      return json(
+        { error: "Érvénytelen munkaidő." },
+        400,
+        cors
+      );
+    }
+
+    data.labor_minutes = minutes;
+  }
+
+  const fields = Object.keys(data);
+
+  const setClause = fields
+    .map(field => `${field} = ?`)
+    .join(", ");
+
+  const values = fields.map(field => data[field]);
+
+  const updates = [setClause];
+
+  if (data.status === "completed") {
+    updates.push(
+      "completed_at = COALESCE(completed_at, datetime('now'))"
+    );
+  } else if (data.status) {
+    updates.push("completed_at = NULL");
+  }
+
+  updates.push("updated_at = datetime('now')");
+
+  await env.DB.prepare(
+    `UPDATE jobs
+     SET ${updates.join(", ")}
+     WHERE id = ?`
+  ).bind(...values, id).run();
+
+  return json({
+    success: true,
+    id
+  }, 200, cors);
+}
+
+// Munka törlése
+if (jobMatch && request.method === "DELETE") {
+  const result = await env.DB.prepare(
+    "DELETE FROM jobs WHERE id = ?"
+  ).bind(jobMatch[1]).run();
+
+  if (!result.meta?.changes) {
+    return json(
+      { error: "A munka nem található." },
+      404,
+      cors
+    );
+  }
+
+  return json({
+    success: true
+  }, 200, cors);
+}
+
+      // Új érdeklődés mentése
+      if (url.pathname === "/api/leads" && request.method === "POST") {
+        const data = cleanFields(
+          await readBody(request),
+          LEAD_FIELDS
+        );
+
+        if (!data.subject || !String(data.subject).trim()) {
+          return json(
+            { error: "Az érdeklődés tárgya kötelező." },
+            400,
+            cors
+          );
+        }
+
+        const allowedServices = [
+          "villanyszereles",
+          "klimaszereles",
+          "ev_tolto",
+          "egyeb"
+        ];
+
+        const allowedSources = [
+          "website",
+          "phone",
+          "email",
+          "facebook",
+          "referral",
+          "manual"
+        ];
+
+        const allowedStatuses = [
+          "new",
+          "contacted",
+          "survey",
+          "quoted",
+          "won",
+          "lost",
+          "archived"
+        ];
+
+        if (!allowedServices.includes(data.service_type)) {
+          return json(
+            { error: "Érvénytelen szolgáltatástípus." },
+            400,
+            cors
+          );
+        }
+
+        if (!data.source) data.source = "manual";
+        if (!data.status) data.status = "new";
+
+        if (!allowedSources.includes(data.source)) {
+          return json(
+            { error: "Érvénytelen érdeklődési forrás." },
+            400,
+            cors
+          );
+        }
+
+        if (!allowedStatuses.includes(data.status)) {
+          return json(
+            { error: "Érvénytelen érdeklődési állapot." },
+            400,
+            cors
+          );
+        }
+
+        const id = crypto.randomUUID();
+        const keys = ["id", ...Object.keys(data)];
+        const values = [id, ...Object.keys(data).map(k => data[k])];
+
+        await env.DB.prepare(
+          `INSERT INTO leads (
+            ${keys.join(",")},
+            created_at,
+            updated_at
+          )
+          VALUES (
+            ${placeholders(keys.length)},
+            datetime('now'),
+            datetime('now')
+          )`
+        )
+          .bind(...values)
+          .run();
+
+        return json({ success: true, id }, 201, cors);
+      }
+
+      return json(
+        { error: "Ismeretlen végpont." },
+        404,
+        cors
+      );
+
+    } catch (error) {
+      console.error("CRM API error:", error);
+
+      return json(
+        {
+          error: "Adatbázis-műveleti hiba. Ellenőrizd a Worker naplóit.",
+          details: error?.message || String(error)
+        },
+        500,
+        cors
+      );
+    }
+  }
+};
