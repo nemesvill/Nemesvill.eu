@@ -1340,6 +1340,46 @@ if (jobMatch && request.method === "DELETE") {
         return json({ success: true }, 200, cors);
       }
 
+
+      // Részletes munkanapló
+      const workLogsMatch = url.pathname.match(/^\/api\/jobs\/([^/]+)\/work-logs$/);
+      if (workLogsMatch && request.method === "GET") {
+        const jobId = workLogsMatch[1];
+        const job = await env.DB.prepare("SELECT id FROM jobs WHERE id = ?").bind(jobId).first();
+        if (!job) return json({ error: "A munka nem található." }, 404, cors);
+        const result = await env.DB.prepare("SELECT * FROM work_logs WHERE job_id = ? ORDER BY work_date DESC, created_at DESC").bind(jobId).all();
+        const logs = result.results || [];
+        return json({ items: logs, total_minutes: logs.reduce((sum, item) => sum + Number(item.duration_minutes || 0), 0) }, 200, cors);
+      }
+
+      if (workLogsMatch && request.method === "POST") {
+        const jobId = workLogsMatch[1];
+        const job = await env.DB.prepare("SELECT id FROM jobs WHERE id = ?").bind(jobId).first();
+        if (!job) return json({ error: "A munka nem található." }, 404, cors);
+        const data = await readBody(request) || {};
+        const workDate = String(data.work_date || "").trim();
+        const task = String(data.task_description || "").trim().slice(0, 1000);
+        const startTime = String(data.start_time || "").trim() || null;
+        const endTime = String(data.end_time || "").trim() || null;
+        const duration = Number(data.duration_minutes ?? 0);
+        const notes = String(data.notes || "").trim().slice(0, 2000) || null;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(workDate)) return json({ error: "Érvényes munkanap szükséges." }, 400, cors);
+        if (!task) return json({ error: "Az elvégzett feladat megnevezése kötelező." }, 400, cors);
+        if (!Number.isSafeInteger(duration) || duration < 0 || duration > 1440) return json({ error: "A munkaidő 0 és 1440 perc közötti egész szám lehet." }, 400, cors);
+        if ((startTime && !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(startTime)) || (endTime && !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(endTime))) return json({ error: "Az időpont formátuma ÓÓ:PP legyen." }, 400, cors);
+        const id = crypto.randomUUID();
+        await env.DB.prepare("INSERT INTO work_logs (id, job_id, work_date, start_time, end_time, duration_minutes, task_description, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+          .bind(id, jobId, workDate, startTime, endTime, duration, task, notes).run();
+        return json({ success: true, id }, 201, cors);
+      }
+
+      const workLogMatch = url.pathname.match(/^\/api\/work-logs\/([^/]+)$/);
+      if (workLogMatch && request.method === "DELETE") {
+        const result = await env.DB.prepare("DELETE FROM work_logs WHERE id = ?").bind(workLogMatch[1]).run();
+        if (!result.meta?.changes) return json({ error: "A munkanapló-bejegyzés nem található." }, 404, cors);
+        return json({ success: true }, 200, cors);
+      }
+
       return json(
         { error: "Ismeretlen végpont." },
         404,
