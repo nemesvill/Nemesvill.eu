@@ -491,6 +491,93 @@ export default {
         }, 200, cors);
       }
 
+      // Egyszeri, admin által kifejezetten megerősített tesztadat-törlés.
+      // Kizárólag az előre felsorolt CRM-táblákat és az azokhoz nyilvántartott R2-fájlokat érinti.
+      if (url.pathname === "/api/admin/cleanup-test-data" && request.method === "POST") {
+        const data = await readBody(request);
+        if (!data || data.confirm !== "DELETE_ALL_TEST_DATA") {
+          return json({ error: "A törléshez pontos megerősítés szükséges." }, 400, cors);
+        }
+        if (!env.FILES) {
+          return json({ error: "Az R2 fájltároló nincs konfigurálva; a törlés nem indult el." }, 500, cors);
+        }
+
+        const tables = [
+          "attachments", "work_logs", "job_cost_items", "income_records",
+          "expenses", "quote_items", "reminders", "maintenance_records",
+          "jobs", "quotes", "leads", "customers", "crm_test"
+        ];
+        const expected = {
+          customers: 6, leads: 0, jobs: 3, quotes: 2, quote_items: 2,
+          maintenance_records: 1, work_logs: 1, job_cost_items: 2,
+          income_records: 1, expenses: 0, attachments: 3, reminders: 0,
+          crm_test: 0
+        };
+        const before = {};
+        for (const table of tables) {
+          const row = await env.DB.prepare("SELECT COUNT(*) AS count FROM " + table).first();
+          before[table] = Number(row?.count || 0);
+        }
+        if (tables.some(table => before[table] !== expected[table])) {
+          return json({
+            error: "Az adatbázis rekordszámai eltérnek az ellenőrzött előnézettől; sem fájl, sem rekord nem törlődött.",
+            expected,
+            actual: before
+          }, 409, cors);
+        }
+
+        const attachmentRows = await env.DB.prepare(
+          "SELECT object_key FROM attachments WHERE object_key IS NOT NULL AND object_key <> ''"
+        ).all();
+        const keys = (attachmentRows.results || []).map(row => row.object_key);
+        if (keys.length !== 3) {
+          return json({
+            error: "A csatolmány-fájlok száma eltér az ellenőrzött előnézettől; a törlés leállt.",
+            expected_attachment_objects: 3,
+            actual_attachment_objects: keys.length
+          }, 409, cors);
+        }
+
+        // Először kizárólag a DB-ben hivatkozott objektumokat töröljük.
+        try {
+          for (let i = 0; i < keys.length; i += 1000) {
+            await env.FILES.delete(keys.slice(i, i + 1000));
+          }
+        } catch (error) {
+          console.error("CRM cleanup R2 deletion failed:", error);
+          return json({
+            error: "Az R2-fájlok törlése nem fejeződött be; az adatbázis rekordjai érintetlenek maradtak."
+          }, 502, cors);
+        }
+
+        // Child-first törlés egyetlen D1 batch-ben. A számlálók, beállítások,
+        // felhasználók, auditnapló és Cloudflare rendszeradatok szándékosan megmaradnak.
+        const statements = tables.map(table =>
+          env.DB.prepare("DELETE FROM " + table)
+        );
+        await env.DB.batch(statements);
+
+        const after = {};
+        const deleted = {};
+        for (const table of tables) {
+          const row = await env.DB.prepare("SELECT COUNT(*) AS count FROM " + table).first();
+          after[table] = Number(row?.count || 0);
+          deleted[table] = before[table] - after[table];
+        }
+
+        const remaining = Object.values(after).reduce((sum, count) => sum + count, 0);
+        return json({
+          success: remaining === 0,
+          message: remaining === 0
+            ? "A kijelölt tesztadatok törlése befejeződött."
+            : "A törlés lefutott, de néhány kijelölt rekord megmaradt.",
+          deleted,
+          remaining: after,
+          r2_objects_deleted: keys.length,
+          preserved_tables: ["app_users", "audit_log", "settings", "job_counters", "quote_counters", "_cf_KV", "sqlite_sequence"]
+        }, remaining === 0 ? 200 : 500, cors);
+      }
+
       // Adatbázis ellenőrzése
       if (url.pathname === "/api/db-check" && request.method === "GET") {
         const result = await env.DB.prepare("SELECT 1 AS ok").first();
