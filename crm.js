@@ -686,10 +686,9 @@ showMessage(
     }
     printWindow.document.write('<!doctype html><html lang="hu"><head><meta charset="utf-8"><title>Nemesvill munkalap</title></head><body><p>Adatok betöltése...</p></body></html>');
     try {
-      const [costData, workData, incomeData] = await Promise.all([
+      const [costData, workData] = await Promise.all([
         api('/api/jobs/' + encodeURIComponent(job.id) + '/costs'),
-        api('/api/jobs/' + encodeURIComponent(job.id) + '/work-logs'),
-        api('/api/jobs/' + encodeURIComponent(job.id) + '/income')
+        api('/api/jobs/' + encodeURIComponent(job.id) + '/work-logs')
       ]);
       const money = value => formatHuf(value);
       const workRows = (workData.items || []).map(item =>
@@ -706,12 +705,6 @@ showMessage(
         escapePrintHtml(item.quantity + ' ' + item.unit) + '</td><td>' +
         money(item.unit_net_cost) + '</td><td>' +
         money(Math.round(Number(item.quantity)*Number(item.unit_net_cost))) + '</td></tr>'
-      ).join('');
-      const incomeRows = (incomeData.items || []).map(item =>
-        '<tr><td>' + escapePrintHtml(item.income_date) + '</td><td>' +
-        escapePrintHtml(item.invoice_number || '') + '</td><td>' +
-        escapePrintHtml(item.description) + '</td><td>' + money(item.gross_amount) +
-        '</td><td>' + (item.paid ? 'Fizetve' : 'Fizetetlen') + '</td></tr>'
       ).join('');
       const t = costData.totals || {};
       const customer = job.customer_company_name || job.customer_name || '—';
@@ -730,12 +723,7 @@ showMessage(
         (workRows || '<tr><td colspan="5">Nincs rögzített munkanapló.</td></tr>') +
         '</tbody></table><h2>Költségek</h2><table><thead><tr><th>Típus</th><th>Megnevezés</th><th>Mennyiség</th><th>Egységköltség</th><th>Összesen</th></tr></thead><tbody>' +
         (costRows || '<tr><td colspan="5">Nincs rögzített költség.</td></tr>') +
-        '</tbody></table><h2>Bevételek és számlák</h2><table><thead><tr><th>Dátum</th><th>Számlaszám</th><th>Megnevezés</th><th>Összeg</th><th>Fizetési állapot</th></tr></thead><tbody>' +
-        (incomeRows || '<tr><td colspan="5">Nincs rögzített bevétel.</td></tr>') +
-        '</tbody></table><div class="totals"><strong>Bevétel:</strong> ' + money(t.income) +
-        ' &nbsp; <strong>Költség:</strong> ' + money(t.total_cost) +
-        ' &nbsp; <strong>Eredmény:</strong> ' + money(t.result) +
-        '<br><span class="muted">Adózási megjelölés: AAM – alanyi adómentes. Ez a munkalap belső nyilvántartás, nem számla és nem helyettesíti a számlát.</span></div>' +
+        '</tbody></table><div class="totals"><strong>Összes közvetlen költség:</strong> ' + money(t.total_cost) + '</div>' +
         '<div class="sign"><div>Megrendelő aláírása</div><div>Vállalkozó aláírása</div></div><p class="muted">Készült: ' +
         escapePrintHtml(new Date().toLocaleString('hu-HU')) + '</p><script>window.addEventListener("load",()=>window.print());</script></body></html>';
       printWindow.document.open();
