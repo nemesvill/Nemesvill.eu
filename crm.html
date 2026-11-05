@@ -378,6 +378,22 @@
       
 
 
+      <!-- NAPTÁR -->
+      <section class="panel coming-panel" id="calendarSection">
+        <div class="eyebrow">MUNKASZERVEZÉS</div>
+        <h2>Naptár</h2>
+        <p class="muted">A munkák ütemezett kezdési időpontjai havi naptárnézetben.</p>
+        <div class="calendar-toolbar">
+          <button type="button" id="calendarPrev" class="secondary" aria-label="Előző hónap">←</button>
+          <h3 id="calendarMonthLabel" aria-live="polite"></h3>
+          <button type="button" id="calendarNext" class="secondary" aria-label="Következő hónap">→</button>
+          <button type="button" id="calendarToday" class="secondary">Mai nap</button>
+        </div>
+        <div id="calendarMessage" class="message" role="status"></div>
+        <div class="calendar-weekdays" aria-hidden="true"><span>H</span><span>K</span><span>Sze</span><span>Cs</span><span>P</span><span>Szo</span><span>V</span></div>
+        <div id="calendarGrid" class="calendar-grid" aria-label="Havi munkanaptár"></div>
+        <div class="calendar-legend muted">A naptár a munkák kezdési időpontját mutatja. A részletek a Munkák résznél szerkeszthetők.</div>
+      </section>
       <!-- KLÍMAKARBANTARTÁS -->
       <section class="panel coming-panel" id="maintenanceSection">
         <div class="eyebrow">ÜGYFÉL UTÓKÖVETÉS</div>
