@@ -1132,6 +1132,7 @@ showMessage(
       jobs = Array.isArray(result) ? result : (result.items || result.jobs || []);
       populateExpenseJobs();
       renderJobs();
+      renderCalendar();
     } catch (error) {
       jobList.innerHTML = '';
       if (jobListMessage) {
@@ -1211,6 +1212,53 @@ showMessage(
   }
     // MUNKÁK FELÜLETÉNEK ELEMEI
   let jobs = [];
+
+  // HAVI MUNKANAPTÁR
+  const calendarGrid = $('calendarGrid');
+  const calendarMonthLabel = $('calendarMonthLabel');
+  let calendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+
+  function calendarDate(value) {
+    if (!value) return null;
+    const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/);
+    if (!match) return null;
+    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), Number(match[4] || 0), Number(match[5] || 0));
+  }
+
+  function renderCalendar() {
+    if (!calendarGrid || !calendarMonthLabel) return;
+    const year = calendarMonth.getFullYear(), month = calendarMonth.getMonth();
+    calendarMonthLabel.textContent = calendarMonth.toLocaleDateString('hu-HU', { year: 'numeric', month: 'long' });
+    calendarGrid.innerHTML = '';
+    const firstDay = new Date(year, month, 1);
+    const mondayOffset = (firstDay.getDay() + 6) % 7;
+    const gridStart = new Date(year, month, 1 - mondayOffset);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const scheduled = jobs.map(job => ({ job, date: calendarDate(job.scheduled_start) })).filter(item => item.date && !Number.isNaN(item.date.getTime()));
+    for (let index = 0; index < 42; index++) {
+      const day = new Date(gridStart); day.setDate(gridStart.getDate() + index);
+      const cell = document.createElement('div'); cell.className = 'calendar-day';
+      if (day.getMonth() !== month) cell.classList.add('outside-month');
+      if (day.getTime() === today.getTime()) cell.classList.add('is-today');
+      const dayNumber = document.createElement('div'); dayNumber.className = 'calendar-day-number'; dayNumber.textContent = String(day.getDate()); cell.append(dayNumber);
+      const dayJobs = scheduled.filter(item => item.date.getFullYear() === day.getFullYear() && item.date.getMonth() === day.getMonth() && item.date.getDate() === day.getDate()).sort((a,b) => a.date - b.date);
+      dayJobs.forEach(({job,date}) => {
+        const event = document.createElement('div'); event.className = 'calendar-event';
+        event.title = [job.title, job.customer_name, formatJobDate(job.scheduled_start)].filter(Boolean).join(' · ');
+        const time = document.createElement('strong'); time.textContent = date.toLocaleTimeString('hu-HU', {hour:'2-digit',minute:'2-digit'});
+        const title = document.createElement('span'); title.textContent = job.title || job.job_number || 'Munka';
+        event.append(time,title); cell.append(event);
+      });
+      calendarGrid.append(cell);
+    }
+    const count = scheduled.filter(({date}) => date.getFullYear() === year && date.getMonth() === month).length;
+    const message = $('calendarMessage');
+    if (message) message.textContent = count ? 'Ebben a hónapban ' + count + ' ütemezett munka szerepel a naptárban.' : 'Ebben a hónapban még nincs ütemezett munka. A munkákhoz a kezdési időpont megadásával kerülnek be az események.';
+  }
+
+  $('calendarPrev')?.addEventListener('click', () => { calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1); renderCalendar(); });
+  $('calendarNext')?.addEventListener('click', () => { calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1); renderCalendar(); });
+  $('calendarToday')?.addEventListener('click', () => { calendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1); renderCalendar(); });
 
   const jobList = $('jobList');
   const jobListMessage = $('jobListMessage');
