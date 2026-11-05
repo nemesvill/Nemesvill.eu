@@ -459,3 +459,43 @@ a:focus-visible,button:focus-visible{
 @media (prefers-reduced-motion:reduce){
   .showcase-item,.service-card,.text-link span{transition:none}
 }
+
+
+/* ===== Bizalmi szekció – tényszerű, ellenőrizhető vállalások ===== */
+.trust-section{padding-top:26px}
+.trust-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:18px;
+}
+.trust-card{
+  padding:22px;
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));
+}
+.trust-icon{
+  display:grid;
+  place-items:center;
+  width:42px;
+  height:42px;
+  margin-bottom:15px;
+  border:1px solid rgba(91,227,255,.25);
+  border-radius:12px;
+  color:var(--accent);
+  background:rgba(35,176,215,.1);
+  font-size:13px;
+  font-weight:800;
+}
+.trust-card h3{margin:0 0 8px}
+.trust-card p,.trust-note p{margin:0;color:var(--muted)}
+.trust-note{
+  margin-top:20px;
+  padding:22px;
+  border:1px solid rgba(91,227,255,.2);
+  border-radius:16px;
+  background:rgba(35,176,215,.055);
+}
+.trust-note strong{display:block;margin-bottom:7px}
+.trust-note .text-link{margin-top:14px}
+@media(max-width:760px){.trust-grid{grid-template-columns:1fr}}
