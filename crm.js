@@ -2026,10 +2026,63 @@ if (newJobButton) {
   }
   $('refreshProfitabilityButton')?.addEventListener('click',loadProfitability);
 
-  // PWA: a felület telepíthető; a munkamenet- és API-adatok nem kerülnek offline gyorsítótárba.
+  // PWA: biztonságos frissítésjelzés. Az üzleti adatok és az API továbbra sem kerülnek cache-be.
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    let pwaUpdateReloading = false;
+
+    function showPwaUpdateNotice(registration) {
+      if (!registration.waiting || $('pwaUpdateNotice')) return;
+
+      const notice = document.createElement('aside');
+      notice.id = 'pwaUpdateNotice';
+      notice.setAttribute('role', 'status');
+      notice.setAttribute('aria-live', 'polite');
+      notice.style.cssText = 'position:fixed;z-index:10000;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));max-width:560px;margin:0 auto;padding:14px 16px;background:#123b3b;color:#fff;border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.24);display:flex;align-items:center;gap:12px;font:500 14px/1.4 system-ui,sans-serif;';
+      const message = document.createElement('span');
+      message.textContent = 'Elérhető a Nemesvill CRM új verziója.';
+      message.style.flex = '1';
+      const updateButton = document.createElement('button');
+      updateButton.type = 'button';
+      updateButton.textContent = 'Frissítés';
+      updateButton.style.cssText = 'border:0;border-radius:9px;padding:10px 14px;background:#fff;color:#123b3b;font-weight:700;min-height:42px;';
+      updateButton.addEventListener('click', () => {
+        updateButton.disabled = true;
+        updateButton.textContent = 'Frissítés…';
+        registration.waiting?.postMessage({ type: 'SKIP_WAITING' });
+      });
+      notice.append(message, updateButton);
+      document.body.append(notice);
+    }
+
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (pwaUpdateReloading) return;
+      pwaUpdateReloading = true;
+      window.location.reload();
+    });
+
+    window.addEventListener('load', async () => {
+      try {
+        const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+        if (registration.waiting) showPwaUpdateNotice(registration);
+
+        registration.addEventListener('updatefound', () => {
+          const installingWorker = registration.installing;
+          if (!installingWorker) return;
+          installingWorker.addEventListener('statechange', () => {
+            if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              showPwaUpdateNotice(registration);
+            }
+          });
+        });
+
+        // Ellenőrzés induláskor és akkor, amikor a felhasználó visszatér az alkalmazáshoz.
+        registration.update().catch(() => {});
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') registration.update().catch(() => {});
+        });
+      } catch (error) {
+        // A CRM normál böngészős működését a PWA-frissítés hibája nem akadályozhatja.
+      }
     }, { once: true });
   }
 
