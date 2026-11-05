@@ -246,14 +246,54 @@ Dunaújváros, Rácalmás, Kulcs, Adony, Baracs, Mezőfalva.
 
 <div data-nemesvill-gallery="villanyszereles"></div>
 
-<section class="cta" id="kapcsolat">
-<div class="container">
-<h3>Villanyszerelőt keres Dunaújvárosban?</h3>
-<p>Hívjon vagy írjon, és egyeztessünk a feladatról és a lehetséges időpontról.</p>
+<section class="section quote-section" id="kapcsolat">
+<div class="container quote-layout">
+  <div class="quote-intro">
+    <span class="section-eyebrow">Kapcsolatfelvétel</span>
+    <h2>Kérjen ajánlatot vagy egyeztessen velem!</h2>
+    <p>Írja meg röviden, milyen munkában kér segítséget. A megadott adatokból e-mail üzenet készül az Ön levelezőprogramjában, amelyet elküldés előtt még ellenőrizhet.</p>
+    <a class="btn btn-primary" href="tel:+36204276454">📞 +36 20 427 6454</a>
+    <p class="quote-email">E-mail: <a href="mailto:nemesvillany@gmail.com">nemesvillany@gmail.com</a></p>
+  </div>
 
-<a class="btn btn-primary" href="tel:+36204276454">📞 +36 20 427 6454</a>
-<a class="btn btn-outline" href="mailto:nemesvillany@gmail.com">✉️ Email küldése</a>
-
+  <form class="quote-form" id="quote-request-form">
+    <div class="form-field">
+      <label for="quote-name">Név</label>
+      <input class="input" id="quote-name" name="name" type="text" autocomplete="name" maxlength="100" required>
+    </div>
+    <div class="form-field">
+      <label for="quote-phone">Telefonszám</label>
+      <input class="input" id="quote-phone" name="phone" type="tel" autocomplete="tel" maxlength="40" required>
+    </div>
+    <div class="form-field">
+      <label for="quote-email">E-mail-cím (nem kötelező)</label>
+      <input class="input" id="quote-email" name="email" type="email" autocomplete="email" maxlength="160">
+    </div>
+    <div class="form-field">
+      <label for="quote-service">Milyen szolgáltatás érdekli?</label>
+      <select class="input" id="quote-service" name="service" required>
+        <option value="">Válasszon szolgáltatást</option>
+        <option>Villanyszerelés</option>
+        <option>Klímaszerelés</option>
+        <option>Klímatisztítás / karbantartás</option>
+        <option>EV-töltő telepítés</option>
+        <option>Egyéb</option>
+      </select>
+    </div>
+    <div class="form-field form-field-full">
+      <label for="quote-location">Munkavégzés helye (település)</label>
+      <input class="input" id="quote-location" name="location" type="text" autocomplete="address-level2" maxlength="100" placeholder="Pl. Dunaújváros">
+    </div>
+    <div class="form-field form-field-full">
+      <label for="quote-message">Röviden írja le, miben segíthetek!</label>
+      <textarea class="textarea" id="quote-message" name="message" maxlength="2000" required placeholder="Milyen munkára lenne szükség?"></textarea>
+    </div>
+    <p class="quote-privacy form-field-full">Az űrlap nem menti és nem továbbítja automatikusan az adatokat. A gomb megnyomásakor az Ön levelezőprogramja nyílik meg egy előkészített üzenettel; az elküldésről Ön dönt.</p>
+    <div class="form-field-full">
+      <button class="btn btn-primary" type="submit">Ajánlatkérés előkészítése</button>
+    </div>
+    <p class="quote-form-status form-field-full" id="quote-form-status" role="status" aria-live="polite"></p>
+  </form>
 </div>
 </section>
 

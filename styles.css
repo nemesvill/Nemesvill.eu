@@ -519,3 +519,40 @@ a:focus-visible,button:focus-visible{
 .local-seo-content p{margin:0}
 .local-seo-closing{margin:20px 0 12px}
 @media(max-width:760px){.local-seo-content{grid-template-columns:1fr}}
+
+
+/* ===== Ajánlatkérő űrlap ===== */
+.quote-section{padding:48px 0}
+.quote-layout{
+  display:grid;
+  grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);
+  gap:30px;
+  align-items:start;
+}
+.quote-intro h2{margin:8px 0 12px}
+.quote-intro>p{color:var(--muted);margin:0 0 20px}
+.quote-intro .quote-email{margin-top:16px;font-size:14px}
+.quote-form{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:15px;
+  padding:24px;
+  border:1px solid var(--line);
+  border-radius:18px;
+  background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.02));
+}
+.form-field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.form-field label{font-size:14px;font-weight:700;color:var(--text)}
+.form-field-full{grid-column:1/-1}
+.quote-form .input,.quote-form .textarea{font:inherit}
+.quote-form select.input{min-height:44px}
+.quote-form .textarea{min-height:120px}
+.quote-privacy{margin:0;color:var(--muted);font-size:12px;line-height:1.5}
+.quote-form-status{margin:0;color:var(--accent);font-size:13px}
+@media(max-width:800px){
+  .quote-layout{grid-template-columns:1fr;gap:22px}
+}
+@media(max-width:560px){
+  .quote-form{grid-template-columns:1fr;padding:18px}
+  .quote-form .form-field{grid-column:1/-1}
+}
