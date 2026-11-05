@@ -284,11 +284,15 @@ Dunaújváros, Rácalmás, Kulcs, Adony, Baracs, Mezőfalva.
       <label for="quote-location">Munkavégzés helye (település)</label>
       <input class="input" id="quote-location" name="location" type="text" autocomplete="address-level2" maxlength="100" placeholder="Pl. Dunaújváros">
     </div>
+    <div class="form-field form-field-full quote-honeypot" aria-hidden="true">
+      <label for="quote-website">Weboldal</label>
+      <input class="input" id="quote-website" name="website" type="text" tabindex="-1" autocomplete="off">
+    </div>
     <div class="form-field form-field-full">
       <label for="quote-message">Röviden írja le, miben segíthetek!</label>
       <textarea class="textarea" id="quote-message" name="message" maxlength="2000" required placeholder="Milyen munkára lenne szükség?"></textarea>
     </div>
-    <p class="quote-privacy form-field-full">Az űrlap nem menti és nem továbbítja automatikusan az adatokat. A gomb megnyomásakor az Ön levelezőprogramja nyílik meg egy előkészített üzenettel; az elküldésről Ön dönt.</p>
+    <p class="quote-privacy form-field-full">Az űrlap elküldésekor az ajánlatkérés biztonságos szerverkapcsolaton keresztül e-mailben érkezik meg. Az adatokat az űrlap nem tárolja adatbázisban.</p>
     <div class="form-field-full">
       <button class="btn btn-primary" type="submit">Ajánlatkérés előkészítése</button>
     </div>
