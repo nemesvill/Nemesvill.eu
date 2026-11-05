@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nemesvill-crm-shell-v1';
+const CACHE_NAME = 'nemesvill-crm-shell-v2';
 const SHELL_FILES = [
   '/crm.html',
   '/crm.css',
@@ -8,11 +8,15 @@ const SHELL_FILES = [
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(SHELL_FILES))
-      .then(() => self.skipWaiting())
-  );
+  // Első telepítéskor az új worker automatikusan aktiválódik.
+  // Frissítéskor megvárjuk, amíg a felhasználó a CRM-ben a Frissítés gombra kattint.
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_FILES)));
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('activate', (event) => {
@@ -33,7 +37,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Only static application files are cached. API responses and business data are never cached.
+  // Csak a statikus alkalmazásfelület gyorsítótárazható. API és üzleti adat soha.
   if (!SHELL_FILES.includes(url.pathname)) return;
 
   event.respondWith((async () => {
