@@ -457,6 +457,49 @@ export default {
     }
 
     try {
+      // Ideiglenes, csak olvasási célú admin előnézet a tesztadatok törlése előtt
+      if (url.pathname === "/api/admin/cleanup-preview" && request.method === "GET") {
+        const schema = await env.DB.prepare(
+          "SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+        ).all();
+
+        const tableNames = [
+          "customers", "leads", "jobs", "quotes", "quote_items",
+          "maintenance_records", "work_logs", "job_cost_items",
+          "income_records", "expenses", "attachments",
+          "job_counters", "quote_counters"
+        ];
+
+        const counts = {};
+        for (const table of tableNames) {
+          const result = await env.DB.prepare(
+            "SELECT COUNT(*) AS count FROM " + table
+          ).first();
+          counts[table] = Number(result?.count || 0);
+        }
+
+        const attachmentKeys = await env.DB.prepare(
+          "SELECT object_key FROM attachments WHERE object_key IS NOT NULL AND object_key <> ''"
+        ).all();
+
+        const foreignKeys = {};
+        for (const table of tableNames) {
+          const result = await env.DB.prepare(
+            "PRAGMA foreign_key_list(" + table + ")"
+          ).all();
+          foreignKeys[table] = result.results || [];
+        }
+
+        return json({
+          preview_only: true,
+          message: "Ez az útvonal nem módosít és nem töröl adatot.",
+          tables: schema.results || [],
+          counts,
+          attachment_object_count: (attachmentKeys.results || []).length,
+          foreign_keys: foreignKeys
+        }, 200, cors);
+      }
+
       // Adatbázis ellenőrzése
       if (url.pathname === "/api/db-check" && request.method === "GET") {
         const result = await env.DB.prepare("SELECT 1 AS ok").first();
