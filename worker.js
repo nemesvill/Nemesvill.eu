@@ -466,8 +466,8 @@ export default {
         const tableNames = [
           "customers", "leads", "jobs", "quotes", "quote_items",
           "maintenance_records", "work_logs", "job_cost_items",
-          "income_records", "expenses", "attachments",
-          "job_counters", "quote_counters"
+          "income_records", "expenses", "attachments", "reminders",
+          "crm_test", "job_counters", "quote_counters"
         ];
 
         const counts = {};
