@@ -686,10 +686,18 @@ showMessage(
     }
     printWindow.document.write('<!doctype html><html lang="hu"><head><meta charset="utf-8"><title>Nemesvill munkalap</title></head><body><p>Adatok betöltése...</p></body></html>');
     try {
-      const [costData, workData] = await Promise.all([
+      const [costData, workData, attachmentData] = await Promise.all([
         api('/api/jobs/' + encodeURIComponent(job.id) + '/costs'),
-        api('/api/jobs/' + encodeURIComponent(job.id) + '/work-logs')
+        api('/api/jobs/' + encodeURIComponent(job.id) + '/work-logs'),
+        api('/api/jobs/' + encodeURIComponent(job.id) + '/attachments')
       ]);
+      const signatureFiles = (attachmentData.items || []).filter(file =>
+        file.file_name === 'alairas-szerelo.png' || file.file_name === 'alairas-ugyfel.png'
+      );
+      const signatureImage = (name, alt) => {
+        const file = signatureFiles.find(item => item.file_name === name);
+        return file ? '<img class="signature-image" src="https://crm-api.nemesvill.eu/api/attachments/' + encodeURIComponent(file.id) + '?inline=1" alt="' + alt + '">' : '';
+      };
       const money = value => formatHuf(value);
       const workRows = (workData.items || []).map(item =>
         '<tr><td>' + escapePrintHtml(item.work_date) + '</td><td>' +
@@ -710,7 +718,7 @@ showMessage(
       const customer = job.customer_company_name || job.customer_name || '—';
       const html = '<!doctype html><html lang="hu"><head><meta charset="utf-8"><title>' +
         escapePrintHtml(job.job_number || 'Munkalap') +
-        '</title><style>body{font:13px/1.45 Arial,sans-serif;color:#17212b;margin:28px}header{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;border-bottom:3px solid #18a9a5;padding-bottom:12px}.brand{display:flex;align-items:center;gap:16px}.brand img{width:150px;height:auto;max-height:115px;object-fit:contain}h1{font-size:24px;margin:0 0 5px;color:#087f7b}h2{font-size:16px;margin:22px 0 8px;border-bottom:1px solid #ccd5dc;padding-bottom:5px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:16px 0}.meta div{padding:5px 0}table{width:100%;border-collapse:collapse;margin:8px 0 18px}th,td{border:1px solid #cbd3da;padding:6px;text-align:left;vertical-align:top}th{background:#edf3f5}.totals{margin:16px 0;padding:12px;background:#edf5f5}.sign{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:70px}.sign div{border-top:1px solid #555;padding-top:7px;text-align:center}.muted{color:#52616c;font-size:11px}@media print{body{margin:12mm}button{display:none}}</style></head><body>' +
+        '</title><style>body{font:13px/1.45 Arial,sans-serif;color:#17212b;margin:28px}header{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;border-bottom:3px solid #18a9a5;padding-bottom:12px}.brand{display:flex;align-items:center;gap:16px}.brand img{width:150px;height:auto;max-height:115px;object-fit:contain}h1{font-size:24px;margin:0 0 5px;color:#087f7b}h2{font-size:16px;margin:22px 0 8px;border-bottom:1px solid #ccd5dc;padding-bottom:5px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:16px 0}.meta div{padding:5px 0}table{width:100%;border-collapse:collapse;margin:8px 0 18px}th,td{border:1px solid #cbd3da;padding:6px;text-align:left;vertical-align:top}th{background:#edf3f5}.totals{margin:16px 0;padding:12px;background:#edf5f5}.sign{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:70px;break-inside:avoid}.sign div{border-top:1px solid #555;padding-top:7px;text-align:center;min-height:85px}.signature-image{display:block;width:100%;height:72px;object-fit:contain;margin:-78px 0 6px;position:relative}.muted{color:#52616c;font-size:11px}@media print{body{margin:12mm}button{display:none}}</style></head><body>' +
         '<header><div class="brand"><img src="https://nemesvill.eu/assets/logo.png" alt="Nemes László e.v. logó"><div><h1>Nemes László e.v.</h1><div>Adószám: 91301994-1-27</div><div>Telefon: +36 20 427 6454</div><div>E-mail: nemesvillany@gmail.com</div><div>Villanyszerelés · Klímaszerelés · EV-töltő telepítés</div></div></div><div><strong>MUNKALAP</strong><br>' +
         escapePrintHtml(job.job_number || '') + '</div></header>' +
         '<div class="meta"><div><strong>Ügyfél:</strong> ' + escapePrintHtml(customer) +
@@ -724,7 +732,7 @@ showMessage(
         '</tbody></table><h2>Költségek</h2><table><thead><tr><th>Típus</th><th>Megnevezés</th><th>Mennyiség</th><th>Egységköltség</th><th>Összesen</th></tr></thead><tbody>' +
         (costRows || '<tr><td colspan="5">Nincs rögzített költség.</td></tr>') +
         '</tbody></table><div class="totals"><strong>Összes közvetlen költség:</strong> ' + money(t.total_cost) + '</div>' +
-        '<div class="sign"><div>Megrendelő aláírása</div><div>Vállalkozó aláírása</div></div><p class="muted">Készült: ' +
+        '<div class="sign"><div>' + signatureImage('alairas-ugyfel.png', 'Ügyfél aláírása') + '<span>Ügyfél aláírása</span></div><div>' + signatureImage('alairas-szerelo.png', 'Szerelő aláírása') + '<span>Szerelő aláírása</span></div></div><p class="muted">Készült: ' +
         escapePrintHtml(new Date().toLocaleString('hu-HU')) + '</p><script>window.addEventListener("load",()=>window.print());</script></body></html>';
       printWindow.document.open();
       printWindow.document.write(html);
@@ -933,6 +941,122 @@ showMessage(
         } catch (e) { alert(e.message); submit.disabled = false; }
       });
       panel.append(form);
+
+      // Szerelői és ügyfél-aláírás rögzítése
+      const signatureHeading = document.createElement('h4');
+      signatureHeading.textContent = 'Aláírások';
+      panel.append(signatureHeading);
+      const signatureHelp = document.createElement('p');
+      signatureHelp.className = 'muted';
+      signatureHelp.textContent = 'Mindketten írjátok alá a munkalapot. Dátum és időpont nem kerül az aláírás mellé.';
+      panel.append(signatureHelp);
+
+      const signatureStyles = document.createElement('style');
+      signatureStyles.textContent = '.signature-card{border:1px solid var(--border,#ccd5dc);border-radius:10px;padding:12px;margin:12px 0}.signature-card canvas{display:block;width:100%;height:150px;background:#fff;border:1px dashed #89949e;border-radius:8px;touch-action:none}.signature-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.signature-status{font-size:13px;color:var(--muted,#52616c)}';
+      panel.append(signatureStyles);
+
+      const signatureData = await api('/api/jobs/' + encodeURIComponent(job.id) + '/attachments');
+      const signatureItems = signatureData.items || [];
+      const signatureUrl = file => 'https://crm-api.nemesvill.eu/api/attachments/' + encodeURIComponent(file.id) + '?inline=1';
+
+      for (const signer of [
+        { key: 'szerelo', fileName: 'alairas-szerelo.png', label: 'Szerelő aláírása' },
+        { key: 'ugyfel', fileName: 'alairas-ugyfel.png', label: 'Ügyfél aláírása' }
+      ]) {
+        const oldSignature = signatureItems.find(file => file.file_name === signer.fileName);
+        const cardBox = document.createElement('div');
+        cardBox.className = 'signature-card';
+        const heading = document.createElement('strong');
+        heading.textContent = signer.label;
+        const canvas = document.createElement('canvas');
+        canvas.setAttribute('aria-label', signer.label + ' rajzfelület');
+        const context = canvas.getContext('2d');
+        context.strokeStyle = '#17212b';
+        context.lineWidth = 2.5;
+        context.lineCap = 'round';
+        context.lineJoin = 'round';
+        let drawing = false;
+        let hasInk = false;
+        let lastPoint = null;
+        const resizeCanvas = () => {
+          const ratio = Math.max(1, window.devicePixelRatio || 1);
+          const rect = canvas.getBoundingClientRect();
+          const previous = hasInk ? canvas.toDataURL() : null;
+          canvas.width = Math.round(rect.width * ratio);
+          canvas.height = Math.round(150 * ratio);
+          context.setTransform(ratio, 0, 0, ratio, 0, 0);
+          context.strokeStyle = '#17212b';
+          context.lineWidth = 2.5;
+          context.lineCap = 'round';
+          context.lineJoin = 'round';
+          if (previous) {
+            const image = new Image();
+            image.onload = () => context.drawImage(image, 0, 0, rect.width, 150);
+            image.src = previous;
+          }
+        };
+        resizeCanvas();
+        const pointFromEvent = event => {
+          const rect = canvas.getBoundingClientRect();
+          return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+        };
+        canvas.addEventListener('pointerdown', event => {
+          event.preventDefault();
+          drawing = true;
+          hasInk = true;
+          lastPoint = pointFromEvent(event);
+          canvas.setPointerCapture(event.pointerId);
+          context.beginPath();
+          context.moveTo(lastPoint.x, lastPoint.y);
+        });
+        canvas.addEventListener('pointermove', event => {
+          if (!drawing) return;
+          const point = pointFromEvent(event);
+          context.lineTo(point.x, point.y);
+          context.stroke();
+          lastPoint = point;
+        });
+        const stopDrawing = () => { drawing = false; lastPoint = null; };
+        canvas.addEventListener('pointerup', stopDrawing);
+        canvas.addEventListener('pointercancel', stopDrawing);
+        const status = document.createElement('p');
+        status.className = 'signature-status';
+        status.textContent = oldSignature ? 'Korábbi aláírás elmentve. Új aláírás rajzolásával lecserélheted.' : 'Még nincs elmentett aláírás.';
+        const actions = document.createElement('div');
+        actions.className = 'signature-actions';
+        const clearButton = document.createElement('button');
+        clearButton.type = 'button';
+        clearButton.className = 'secondary';
+        clearButton.textContent = 'Rajz törlése';
+        clearButton.addEventListener('click', () => {
+          context.clearRect(0, 0, canvas.width, canvas.height);
+          hasInk = false;
+        });
+        const saveButton = document.createElement('button');
+        saveButton.type = 'button';
+        saveButton.textContent = oldSignature ? 'Aláírás cseréje és mentése' : 'Aláírás mentése';
+        saveButton.addEventListener('click', async () => {
+          if (!hasInk) { alert('Először rajzold be az aláírást.'); return; }
+          saveButton.disabled = true;
+          try {
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            if (!blob) throw new Error('Az aláírás képpé alakítása nem sikerült.');
+            if (oldSignature) await api('/api/attachments/' + encodeURIComponent(oldSignature.id), { method: 'DELETE' });
+            const file = new File([blob], signer.fileName, { type: 'image/png' });
+            const fd = new FormData();
+            fd.append('file', file);
+            await api('/api/jobs/' + encodeURIComponent(job.id) + '/attachments', { method: 'POST', body: fd });
+            status.textContent = 'Aláírás sikeresen elmentve.';
+            saveButton.textContent = 'Aláírás mentve';
+          } catch (error) {
+            alert('Az aláírás mentése nem sikerült: ' + error.message);
+            saveButton.disabled = false;
+          }
+        });
+        actions.append(clearButton, saveButton);
+        cardBox.append(heading, canvas, actions, status);
+        panel.append(cardBox);
+      }
 
       // Fényképek és dokumentumok csatolása a munkához
       const attachmentHeading = document.createElement('h4');
