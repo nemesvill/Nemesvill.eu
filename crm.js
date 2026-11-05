@@ -2029,6 +2029,7 @@ if (newJobButton) {
   // PWA: biztonságos frissítésjelzés. Az üzleti adatok és az API továbbra sem kerülnek cache-be.
   if ('serviceWorker' in navigator) {
     let pwaUpdateReloading = false;
+    const hadPwaController = Boolean(navigator.serviceWorker.controller);
 
     function showPwaUpdateNotice(registration) {
       if (!registration.waiting || $('pwaUpdateNotice')) return;
@@ -2055,7 +2056,7 @@ if (newJobButton) {
     }
 
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (pwaUpdateReloading) return;
+      if (!hadPwaController || pwaUpdateReloading) return;
       pwaUpdateReloading = true;
       window.location.reload();
     });
