@@ -556,3 +556,16 @@ a:focus-visible,button:focus-visible{
   .quote-form{grid-template-columns:1fr;padding:18px}
   .quote-form .form-field{grid-column:1/-1}
 }
+
+
+/* Ajánlatkérő űrlap: rejtett spamcsapda és küldési állapotok */
+.quote-honeypot{
+  position:absolute!important;
+  left:-10000px!important;
+  width:1px!important;
+  height:1px!important;
+  overflow:hidden!important;
+}
+.quote-form button:disabled{opacity:.65;cursor:wait}
+.quote-form-status.is-success{color:#56d6a0}
+.quote-form-status.is-error{color:#ff9b9b}
