@@ -1392,7 +1392,6 @@ showMessage(
   const jobLead = $('jobLead');
   const jobService = $('jobService');
   const jobTitle = $('jobTitle');
-  const jobDescription = $('jobDescription');
   const jobStart = $('jobStart');
   const jobEnd = $('jobEnd');
   const jobStatus = $('jobStatus');
@@ -1417,7 +1416,6 @@ showMessage(
     populateJobLeads(job.lead_id || '');
     jobService.value = job.service_type || 'villanyszereles';
     jobTitle.value = job.title || '';
-    jobDescription.value = job.description || '';
     jobStart.value = toDateTimeLocal(job.scheduled_start);
     jobEnd.value = toDateTimeLocal(job.scheduled_end);
     jobStatus.value = job.status || 'planned';
@@ -1502,7 +1500,6 @@ if (newJobButton) {
         lead_id: jobLead.value || null,
         service_type: jobService.value,
         title: jobTitle.value.trim(),
-        description: jobDescription.value.trim(),
         scheduled_start: jobStart.value || null,
         scheduled_end: jobEnd.value || null,
         status: jobStatus.value,
@@ -2055,7 +2052,7 @@ if (newJobButton) {
     (jobs||[]).forEach(job=>{
       const option=document.createElement('option');
       option.value=job.id;
-      option.textContent=(job.job_number||'')+' – '+(job.title||job.description||'Munka');
+      option.textContent=(job.job_number||'')+' – '+(job.title||'Munka');
       expenseJob.append(option);
     });
     if(selected)expenseJob.value=selected;
