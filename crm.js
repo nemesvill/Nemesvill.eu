@@ -723,7 +723,6 @@ showMessage(
         escapePrintHtml(job.job_number || '') + '</div></header>' +
         '<div class="meta"><div><strong>Ügyfél:</strong> ' + escapePrintHtml(customer) +
         '</div><div><strong>Szolgáltatás:</strong> ' + escapePrintHtml(job.service_type || '') +
-        '</div><div><strong>Munkavégzés helye:</strong> ' + escapePrintHtml(job.address_text || '') +
         '</div><div><strong>Munka megnevezése:</strong> ' + escapePrintHtml(job.title || '') +
         '</div><div><strong>Tervezett kezdés:</strong> ' + escapePrintHtml(job.scheduled_start || '—') +
         '</div><div><strong>Tervezett befejezés:</strong> ' + escapePrintHtml(job.scheduled_end || '—') +
@@ -1279,7 +1278,6 @@ showMessage(
         job.job_number,
         job.title,
         customer,
-        job.address_text,
         job.service_type,
         job.status
       ].join(' ').toLowerCase();
