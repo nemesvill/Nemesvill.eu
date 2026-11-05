@@ -1401,7 +1401,6 @@ showMessage(
   const jobStart = $('jobStart');
   const jobEnd = $('jobEnd');
   const jobAddress = $('jobAddress');
-  const jobLaborMinutes = $('jobLaborMinutes');
   const jobStatus = $('jobStatus');
   const jobNotes = $('jobNotes');
   const jobFormMessage = $('jobFormMessage');
@@ -1428,7 +1427,6 @@ showMessage(
     jobStart.value = toDateTimeLocal(job.scheduled_start);
     jobEnd.value = toDateTimeLocal(job.scheduled_end);
     jobAddress.value = job.address_text || '';
-    jobLaborMinutes.value = job.labor_minutes || 0;
     jobStatus.value = job.status || 'planned';
     jobNotes.value = job.notes || '';
 
@@ -1515,7 +1513,6 @@ if (newJobButton) {
         scheduled_start: jobStart.value || null,
         scheduled_end: jobEnd.value || null,
         address_text: jobAddress.value.trim(),
-        labor_minutes: Number(jobLaborMinutes.value) || 0,
         status: jobStatus.value,
         notes: jobNotes.value.trim()
       };
