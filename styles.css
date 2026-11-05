@@ -569,3 +569,56 @@ a:focus-visible,button:focus-visible{
 .quote-form button:disabled{opacity:.65;cursor:wait}
 .quote-form-status.is-success{color:#56d6a0}
 .quote-form-status.is-error{color:#ff9b9b}
+
+
+
+/* ===== Google-értékelések ===== */
+.reviews-section{padding-top:20px}
+.reviews-panel{
+  display:grid;
+  grid-template-columns:minmax(0,1.35fr) minmax(230px,.65fr);
+  gap:28px;
+  align-items:center;
+  padding:clamp(22px,4vw,38px);
+  border:1px solid rgba(91,227,255,.22);
+  border-radius:20px;
+  background:
+    radial-gradient(420px 240px at 100% 0%,rgba(35,176,215,.13),transparent 72%),
+    linear-gradient(145deg,#111f2d,#0c141e 72%);
+}
+.reviews-copy h2{margin:8px 0 10px}
+.reviews-copy>p{color:var(--muted)}
+.reviews-score{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:10px;
+  margin:20px 0 8px;
+}
+.reviews-score>strong{font-size:34px;line-height:1;color:var(--text)}
+.reviews-stars,.reviews-big-stars{color:#ffc857;letter-spacing:3px}
+.reviews-stars{font-size:22px}
+.reviews-count{color:var(--muted);font-size:14px}
+.reviews-note{font-size:12px;margin:0 0 18px}
+.reviews-actions{display:flex;flex-wrap:wrap;align-items:center;gap:14px}
+.reviews-aside{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  min-height:210px;
+  padding:22px;
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:rgba(255,255,255,.035);
+  text-align:center;
+}
+.reviews-google-mark{font-size:20px;font-weight:800;letter-spacing:-.04em}
+.reviews-big-stars{font-size:26px}
+.reviews-aside strong{font-size:17px}
+.reviews-aside>span:last-child{color:var(--muted);font-size:13px}
+@media(max-width:760px){
+  .reviews-panel{grid-template-columns:1fr}
+  .reviews-aside{min-height:160px}
+}
