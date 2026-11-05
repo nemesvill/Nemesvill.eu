@@ -1041,11 +1041,11 @@ showMessage(
           try {
             const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
             if (!blob) throw new Error('Az aláírás képpé alakítása nem sikerült.');
-            if (oldSignature) await api('/api/attachments/' + encodeURIComponent(oldSignature.id), { method: 'DELETE' });
             const file = new File([blob], signer.fileName, { type: 'image/png' });
             const fd = new FormData();
             fd.append('file', file);
             await api('/api/jobs/' + encodeURIComponent(job.id) + '/attachments', { method: 'POST', body: fd });
+            if (oldSignature) await api('/api/attachments/' + encodeURIComponent(oldSignature.id), { method: 'DELETE' });
             status.textContent = 'Aláírás sikeresen elmentve.';
             saveButton.textContent = 'Aláírás mentve';
           } catch (error) {
@@ -1056,6 +1056,7 @@ showMessage(
         actions.append(clearButton, saveButton);
         cardBox.append(heading, canvas, actions, status);
         panel.append(cardBox);
+        resizeCanvas();
       }
 
       // Fényképek és dokumentumok csatolása a munkához
