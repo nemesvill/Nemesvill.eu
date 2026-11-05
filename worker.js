@@ -482,21 +482,12 @@ export default {
           "SELECT object_key FROM attachments WHERE object_key IS NOT NULL AND object_key <> ''"
         ).all();
 
-        const foreignKeys = {};
-        for (const table of tableNames) {
-          const result = await env.DB.prepare(
-            "PRAGMA foreign_key_list(" + table + ")"
-          ).all();
-          foreignKeys[table] = result.results || [];
-        }
-
         return json({
           preview_only: true,
           message: "Ez az útvonal nem módosít és nem töröl adatot.",
           tables: schema.results || [],
           counts,
-          attachment_object_count: (attachmentKeys.results || []).length,
-          foreign_keys: foreignKeys
+          attachment_object_count: (attachmentKeys.results || []).length
         }, 200, cors);
       }
 
