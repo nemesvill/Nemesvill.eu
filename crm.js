@@ -723,7 +723,6 @@ showMessage(
         escapePrintHtml(job.job_number || '') + '</div></header>' +
         '<div class="meta"><div><strong>Ügyfél:</strong> ' + escapePrintHtml(customer) +
         '</div><div><strong>Szolgáltatás:</strong> ' + escapePrintHtml(job.service_type || '') +
-        '</div><div><strong>Munkavégzés helye:</strong> ' + escapePrintHtml(job.address_text || '') +
         '</div><div><strong>Munka megnevezése:</strong> ' + escapePrintHtml(job.title || '') +
         '</div><div><strong>Tervezett kezdés:</strong> ' + escapePrintHtml(job.scheduled_start || '—') +
         '</div><div><strong>Tervezett befejezés:</strong> ' + escapePrintHtml(job.scheduled_end || '—') +
@@ -1279,7 +1278,6 @@ showMessage(
         job.job_number,
         job.title,
         customer,
-        job.address_text,
         job.service_type,
         job.status
       ].join(' ').toLowerCase();
@@ -1310,9 +1308,6 @@ showMessage(
         ? `Kezdés: ${formatJobDate(job.scheduled_start)}`
         : 'Nincs időpont megadva';
 
-      const address = document.createElement('p');
-      address.textContent = job.address_text || '';
-
       const actions = document.createElement('div');
       actions.className = 'item-actions';
 
@@ -1331,7 +1326,7 @@ showMessage(
       sheetButton.textContent = 'Munkalap / költségek';
       sheetButton.addEventListener('click', () => toggleJobSheet(job, card));
       actions.append(editButton, deleteButton, sheetButton);
-      card.append(heading, details, date, address, actions);
+      card.append(heading, details, date, actions);
       jobList.append(card);
     });
   }
@@ -1400,7 +1395,6 @@ showMessage(
   const jobDescription = $('jobDescription');
   const jobStart = $('jobStart');
   const jobEnd = $('jobEnd');
-  const jobAddress = $('jobAddress');
   const jobStatus = $('jobStatus');
   const jobNotes = $('jobNotes');
   const jobFormMessage = $('jobFormMessage');
@@ -1426,7 +1420,6 @@ showMessage(
     jobDescription.value = job.description || '';
     jobStart.value = toDateTimeLocal(job.scheduled_start);
     jobEnd.value = toDateTimeLocal(job.scheduled_end);
-    jobAddress.value = job.address_text || '';
     jobStatus.value = job.status || 'planned';
     jobNotes.value = job.notes || '';
 
@@ -1512,7 +1505,6 @@ if (newJobButton) {
         description: jobDescription.value.trim(),
         scheduled_start: jobStart.value || null,
         scheduled_end: jobEnd.value || null,
-        address_text: jobAddress.value.trim(),
         status: jobStatus.value,
         notes: jobNotes.value.trim()
       };
