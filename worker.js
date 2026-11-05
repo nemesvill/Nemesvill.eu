@@ -442,6 +442,78 @@ export default {
       );
     }
 
+    // Nyilvános ajánlatkérés – csak a saját weboldalról, a meglévő Resend küldővel.
+    if (url.pathname === "/api/public/quote-request" && request.method === "POST") {
+      if (!cors["Access-Control-Allow-Origin"] || origin !== "https://nemesvill.eu" && origin !== "https://www.nemesvill.eu") {
+        return json({ error: "A kérés forrása nem engedélyezett." }, 403, cors);
+      }
+      if (!env.RESEND_API_KEY) return json({ error: "Az e-mail-küldés jelenleg nem elérhető." }, 503, cors);
+      const contentLength = Number(request.headers.get("Content-Length") || 0);
+      if (contentLength > 12000) return json({ error: "Túl nagy az elküldött üzenet." }, 413, cors);
+      const data = await readBody(request);
+      if (!data || typeof data !== "object") return json({ error: "Érvénytelen űrlapadatok." }, 400, cors);
+
+      // Honeypot: automatikus spam esetén csendes siker.
+      if (String(data.website || "").trim()) return json({ success: true }, 200, cors);
+
+      const name = String(data.name || "").trim().slice(0, 100);
+      const phone = String(data.phone || "").trim().slice(0, 40);
+      const email = String(data.email || "").trim().slice(0, 160);
+      const service = String(data.service || "").trim();
+      const location = String(data.location || "").trim().slice(0, 100);
+      const message = String(data.message || "").trim().slice(0, 2000);
+      const allowedServices = ["Villanyszerelés", "Klímaszerelés", "Klímatisztítás / karbantartás", "EV-töltő telepítés", "Egyéb"];
+
+      if (!name || !phone || !message || !allowedServices.includes(service)) {
+        return json({ error: "Kérjük, töltse ki a kötelező mezőket." }, 400, cors);
+      }
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return json({ error: "Kérjük, ellenőrizze az e-mail-címet." }, 400, cors);
+      }
+
+      const safe = value => value.replace(/[&<>"']/g, char => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      }[char]));
+      const textBody = [
+        "Új ajánlatkérés érkezett a nemesvill.eu weboldalról.",
+        "",
+        "Név: " + name,
+        "Telefonszám: " + phone,
+        "E-mail: " + (email || "Nem adta meg"),
+        "Szolgáltatás: " + service,
+        "Település: " + (location || "Nem adta meg"),
+        "",
+        "Üzenet:",
+        message
+      ].join("\n");
+      const htmlBody = `<div style="font-family:Arial,sans-serif;color:#172033;max-width:680px">
+        <h2>Új ajánlatkérés – nemesvill.eu</h2>
+        <p><strong>Név:</strong> ${safe(name)}</p>
+        <p><strong>Telefonszám:</strong> ${safe(phone)}</p>
+        <p><strong>E-mail:</strong> ${safe(email || "Nem adta meg")}</p>
+        <p><strong>Szolgáltatás:</strong> ${safe(service)}</p>
+        <p><strong>Település:</strong> ${safe(location || "Nem adta meg")}</p>
+        <p><strong>Üzenet:</strong><br>${safe(message).replace(/\n/g, "<br>")}</p>
+      </div>`;
+      const mailResponse = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + env.RESEND_API_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: "Nemesvill Weboldal <ertesito@send.nemesvill.eu>",
+          to: ["nemesvillany@gmail.com"],
+          reply_to: email || undefined,
+          subject: "Új ajánlatkérés – " + service,
+          text: textBody,
+          html: htmlBody
+        })
+      });
+      if (!mailResponse.ok) {
+        console.error("Public quote email error:", mailResponse.status, await mailResponse.text());
+        return json({ error: "Az e-mail küldése nem sikerült. Kérjük, próbálja újra később vagy hívjon telefonon." }, 502, cors);
+      }
+      return json({ success: true }, 200, cors);
+    }
+
     const authenticated = await verifySession(request, env);
 
     if (url.pathname === "/api/admin/check" && request.method === "GET") {
