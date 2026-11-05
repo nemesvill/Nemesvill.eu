@@ -45,7 +45,7 @@ self.addEventListener('fetch', (event) => {
       }
       return response;
     } catch (error) {
-      const cached = await cache.match(request);
+      const cached = await cache.match(request, { ignoreSearch: true });
       if (cached) return cached;
       throw error;
     }
