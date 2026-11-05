@@ -74,3 +74,30 @@
 .calendar-event strong{color:#76e0d8;font-size:.72rem}
 .calendar-legend{font-size:.85rem;margin-top:12px}
 @media(max-width:620px){.calendar-weekdays,.calendar-grid{gap:3px}.calendar-day{min-height:82px;padding:4px;border-radius:6px}.calendar-day-number{font-size:.8rem;margin-bottom:4px}.calendar-event{padding:3px;margin:3px 0;font-size:.65rem}.calendar-event strong{font-size:.65rem}.calendar-toolbar h3{min-width:145px;font-size:1rem}}
+
+
+/* Mobilos érintési felületek – kényelmesebb használat Androidon */
+@media(max-width:620px){
+  button{
+    min-height:46px;
+    padding:12px 16px;
+    touch-action:manipulation;
+  }
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea{
+    min-height:46px;
+    font-size:16px;
+  }
+  input[type="checkbox"],
+  input[type="radio"]{
+    min-width:22px;
+    min-height:22px;
+  }
+  .customer-actions,
+  .maintenance-actions,
+  .expense-actions,
+  .job-income-actions{
+    gap:10px;
+  }
+}
