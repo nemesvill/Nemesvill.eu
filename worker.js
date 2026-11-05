@@ -507,21 +507,34 @@ export default {
           "expenses", "quote_items", "reminders", "maintenance_records",
           "jobs", "quotes", "leads", "customers", "crm_test"
         ];
+        const expected = {
+          customers: 6, leads: 0, jobs: 3, quotes: 2, quote_items: 2,
+          maintenance_records: 1, work_logs: 1, job_cost_items: 2,
+          income_records: 1, expenses: 0, attachments: 3, reminders: 0,
+          crm_test: 0
+        };
         const before = {};
         for (const table of tables) {
           const row = await env.DB.prepare("SELECT COUNT(*) AS count FROM " + table).first();
           before[table] = Number(row?.count || 0);
+        }
+        if (tables.some(table => before[table] !== expected[table])) {
+          return json({
+            error: "Az adatbázis rekordszámai eltérnek az ellenőrzött előnézettől; sem fájl, sem rekord nem törlődött.",
+            expected,
+            actual: before
+          }, 409, cors);
         }
 
         const attachmentRows = await env.DB.prepare(
           "SELECT object_key FROM attachments WHERE object_key IS NOT NULL AND object_key <> ''"
         ).all();
         const keys = (attachmentRows.results || []).map(row => row.object_key);
-        if (keys.length !== before.attachments) {
+        if (keys.length !== 3) {
           return json({
-            error: "A csatolmányok és a fájlkulcsok száma eltér; a törlés biztonsági okból leállt.",
-            attachment_records: before.attachments,
-            attachment_objects: keys.length
+            error: "A csatolmány-fájlok száma eltér az ellenőrzött előnézettől; a törlés leállt.",
+            expected_attachment_objects: 3,
+            actual_attachment_objects: keys.length
           }, 409, cors);
         }
 
