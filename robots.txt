@@ -1,7 +1,7 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://nemesv.eu/sitemap.xml
+Sitemap: https://nemesvill.eu/sitemap.xml
 
 # As a condition of accessing this website, you agree to abide by the following
 # content signals.
@@ -34,4 +34,4 @@ Disallow: /
 User-agent: meta-externalagent
 Disallow: /
 
-Sitemap: https://nemesv.eu/sitemap.xml
+Sitemap: https://nemesvill.eu/sitemap.xml
