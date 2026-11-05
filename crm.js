@@ -717,8 +717,8 @@ showMessage(
       const customer = job.customer_company_name || job.customer_name || '—';
       const html = '<!doctype html><html lang="hu"><head><meta charset="utf-8"><title>' +
         escapePrintHtml(job.job_number || 'Munkalap') +
-        '</title><style>body{font:13px/1.45 Arial,sans-serif;color:#17212b;margin:28px}header{display:flex;justify-content:space-between;border-bottom:3px solid #18a9a5;padding-bottom:12px}h1{font-size:24px;margin:0;color:#087f7b}h2{font-size:16px;margin:22px 0 8px;border-bottom:1px solid #ccd5dc;padding-bottom:5px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:16px 0}.meta div{padding:5px 0}table{width:100%;border-collapse:collapse;margin:8px 0 18px}th,td{border:1px solid #cbd3da;padding:6px;text-align:left;vertical-align:top}th{background:#edf3f5}.totals{margin:16px 0;padding:12px;background:#edf5f5}.sign{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:70px}.sign div{border-top:1px solid #555;padding-top:7px;text-align:center}.muted{color:#52616c;font-size:11px}@media print{body{margin:12mm}button{display:none}}</style></head><body>' +
-        '<header><div><h1>NEMESVILL</h1><div>Villanyszerelés · Klímaszerelés · EV-töltő telepítés</div></div><div><strong>MUNKALAP</strong><br>' +
+        '</title><style>body{font:13px/1.45 Arial,sans-serif;color:#17212b;margin:28px}header{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;border-bottom:3px solid #18a9a5;padding-bottom:12px}.brand{display:flex;align-items:center;gap:16px}.brand img{width:150px;height:auto;max-height:115px;object-fit:contain}h1{font-size:24px;margin:0 0 5px;color:#087f7b}h2{font-size:16px;margin:22px 0 8px;border-bottom:1px solid #ccd5dc;padding-bottom:5px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:16px 0}.meta div{padding:5px 0}table{width:100%;border-collapse:collapse;margin:8px 0 18px}th,td{border:1px solid #cbd3da;padding:6px;text-align:left;vertical-align:top}th{background:#edf3f5}.totals{margin:16px 0;padding:12px;background:#edf5f5}.sign{display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:70px}.sign div{border-top:1px solid #555;padding-top:7px;text-align:center}.muted{color:#52616c;font-size:11px}@media print{body{margin:12mm}button{display:none}}</style></head><body>' +
+        '<header><div class="brand"><img src="https://nemesvill.eu/assets/logo.png" alt="Nemes László e.v. logó"><div><h1>Nemes László e.v.</h1><div>Adószám: 91301994-1-27</div><div>Telefon: +36 20 427 6454</div><div>E-mail: nemesvillany@gmail.com</div><div>Villanyszerelés · Klímaszerelés · EV-töltő telepítés</div></div></div><div><strong>MUNKALAP</strong><br>' +
         escapePrintHtml(job.job_number || '') + '</div></header>' +
         '<div class="meta"><div><strong>Ügyfél:</strong> ' + escapePrintHtml(customer) +
         '</div><div><strong>Szolgáltatás:</strong> ' + escapePrintHtml(job.service_type || '') +
@@ -1612,7 +1612,7 @@ if (newJobButton) {
       `).join('');
       w.document.write(`<!doctype html><html lang="hu"><head><meta charset="utf-8"><title>${escapeQuoteHtml(q.quote_number)}</title>
       <style>
-      body{font:14px Arial,sans-serif;color:#222;margin:32px}header{display:flex;justify-content:space-between;border-bottom:3px solid #222;padding-bottom:18px}
+      body{font:14px Arial,sans-serif;color:#222;margin:32px}header{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;border-bottom:3px solid #16858d;padding-bottom:18px}.brand{display:flex;align-items:center;gap:16px}.brand img{width:165px;height:auto;max-height:125px;object-fit:contain}
       h1{font-size:25px;margin:0 0 6px}h2{margin-top:30px;font-size:18px}.muted{color:#666}
       .grid{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin:25px 0}table{width:100%;border-collapse:collapse;margin-top:18px}
       th,td{padding:10px 8px;border-bottom:1px solid #ddd;text-align:left}th{background:#f2f2f2}.right{text-align:right}
@@ -1620,9 +1620,9 @@ if (newJobButton) {
       .notes{white-space:pre-wrap;margin-top:25px}.sign{display:grid;grid-template-columns:1fr 1fr;gap:70px;margin-top:85px}.sign div{border-top:1px solid #777;padding-top:8px}
       @media print{body{margin:15mm}.no-print{display:none}}
       </style></head><body>
-      <header><div><h1>NEMESVILL</h1><div>Villanyszerelés · Klímaszerelés · EV-töltő telepítés</div><div class="muted">Dunaújváros és környéke</div></div>
+      <header><div class="brand"><img src="https://nemesvill.eu/assets/logo.png" alt="Nemes László e.v. logó"><div><h1>Nemes László e.v.</h1><div>Adószám: 91301994-1-27</div><div>Telefon: +36 20 427 6454</div><div>E-mail: nemesvillany@gmail.com</div><div class="muted">Dunaújváros és környéke</div></div></div>
       <div style="text-align:right"><h1>ÁRAJÁNLAT</h1><strong>${escapeQuoteHtml(q.quote_number)}</strong><div>Kiállítás: ${escapeQuoteHtml(q.issue_date)}</div><div>Érvényes: ${escapeQuoteHtml(q.valid_until || 'Visszavonásig')}</div></div></header>
-      <div class="grid"><section><h2>Ajánlattevő</h2><strong>Nemesvill – Nemes László e.v.</strong><div>Dunaújváros és 30 km-es körzete</div><div class="muted">Web: nemesvill.eu</div></section>
+      <div class="grid"><section><h2>Ajánlattevő</h2><strong>Nemes László e.v.</strong><div>Adószám: 91301994-1-27</div><div>Telefon: +36 20 427 6454</div><div>E-mail: nemesvillany@gmail.com</div><div>Dunaújváros és 30 km-es körzete</div><div class="muted">Web: nemesvill.eu</div></section>
       <section><h2>Megrendelő</h2><strong>${escapeQuoteHtml(q.customer_company_name || q.customer_name)}</strong>
       <div>${escapeQuoteHtml(address)}</div><div>${escapeQuoteHtml(q.customer_email || '')}</div><div>${escapeQuoteHtml(q.customer_phone || '')}</div>
       ${q.tax_number ? '<div>Adószám: '+escapeQuoteHtml(q.tax_number)+'</div>' : ''}</section></div>
