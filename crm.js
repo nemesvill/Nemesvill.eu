@@ -1639,6 +1639,13 @@ if (newJobButton) {
     }
   }
 
+  function addDaysToDate(value, days = 15) {
+    if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(value || '')) return '';
+    const date = new Date(value + 'T00:00:00Z');
+    date.setUTCDate(date.getUTCDate() + days);
+    return date.toISOString().slice(0, 10);
+  }
+
   const newQuoteButton = $('newQuoteButton');
   const cancelQuoteButton = $('cancelQuoteButton');
   const addQuoteItemButton = $('addQuoteItemButton');
@@ -1650,7 +1657,9 @@ if (newJobButton) {
     $('saveQuoteButton').textContent = 'Árajánlat mentése';
     if (quoteItems) quoteItems.innerHTML = '';
     populateQuoteSelectors();
-    if ($('quoteIssueDate')) $('quoteIssueDate').value = new Date().toISOString().slice(0,10);
+    const issueDate = new Date().toISOString().slice(0, 10);
+    if ($('quoteIssueDate')) $('quoteIssueDate').value = issueDate;
+    if ($('quoteValidUntil')) $('quoteValidUntil').value = addDaysToDate(issueDate, 15);
     if (quoteFormPanel) quoteFormPanel.hidden = false;
     if (quoteFormMessage) quoteFormMessage.textContent = '';
     addQuoteItemRow();
