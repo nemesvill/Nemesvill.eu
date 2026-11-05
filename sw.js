@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nemesvill-crm-shell-v2';
+const CACHE_NAME = 'nemesvill-crm-shell-v3';
 const SHELL_FILES = [
   '/crm.html',
   '/crm.css',
