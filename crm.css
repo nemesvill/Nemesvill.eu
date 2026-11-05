@@ -59,3 +59,18 @@
 .maintenance-actions{display:flex;gap:8px;flex-wrap:wrap}
 .maintenance-actions button{margin:0}
 @media(max-width:620px){.maintenance-form{grid-template-columns:1fr}.maintenance-card{align-items:flex-start;flex-direction:column}.maintenance-wide{grid-column:auto}}
+
+/* Havi munkanaptár */
+.calendar-toolbar{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:16px 0}
+.calendar-toolbar h3{min-width:180px;text-align:center;margin:0;text-transform:capitalize}
+.calendar-toolbar button{margin:0}
+.calendar-weekdays,.calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.calendar-weekdays{margin-bottom:6px;text-align:center;color:var(--muted);font-size:.85rem;font-weight:700}
+.calendar-day{min-height:112px;min-width:0;padding:7px;border:1px solid var(--line);border-radius:9px;background:#091722;overflow:hidden}
+.calendar-day.outside-month{opacity:.42}
+.calendar-day.is-today{border:2px solid var(--accent)}
+.calendar-day-number{font-weight:700;margin-bottom:6px}
+.calendar-event{display:flex;flex-direction:column;gap:2px;padding:5px 6px;margin:4px 0;border-radius:6px;background:#123c48;color:var(--text);font-size:.75rem;line-height:1.25;overflow-wrap:anywhere}
+.calendar-event strong{color:#76e0d8;font-size:.72rem}
+.calendar-legend{font-size:.85rem;margin-top:12px}
+@media(max-width:620px){.calendar-weekdays,.calendar-grid{gap:3px}.calendar-day{min-height:82px;padding:4px;border-radius:6px}.calendar-day-number{font-size:.8rem;margin-bottom:4px}.calendar-event{padding:3px;margin:3px 0;font-size:.65rem}.calendar-event strong{font-size:.65rem}.calendar-toolbar h3{min-width:145px;font-size:1rem}}
