@@ -2026,6 +2026,13 @@ if (newJobButton) {
   }
   $('refreshProfitabilityButton')?.addEventListener('click',loadProfitability);
 
+  // PWA: a felület telepíthető; a munkamenet- és API-adatok nem kerülnek offline gyorsítótárba.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+    }, { once: true });
+  }
+
   // INDÍTÁS
   checkSession();
 })();
