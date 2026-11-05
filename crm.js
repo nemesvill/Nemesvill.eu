@@ -1640,7 +1640,7 @@ if (newJobButton) {
   }
 
   function addDaysToDate(value, days = 15) {
-    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(value || '')) return '';
+    if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(value || '')) return '';
     const date = new Date(value + 'T00:00:00Z');
     date.setUTCDate(date.getUTCDate() + days);
     return date.toISOString().slice(0, 10);
