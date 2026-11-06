@@ -138,7 +138,15 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const current=read();
-  if(current){banner.hidden=true;apply(current);}
+  if(current){
+    banner.hidden=true;
+    settings.hidden=true;
+    apply(current);
+  } else {
+    // Első látogatáskor, mentett hozzájárulás hiányában automatikusan jelenjen meg.
+    banner.hidden=false;
+    settings.hidden=true;
+  }
 
   document.getElementById('cookie-accept-all')?.addEventListener('click',()=>save({analytics:true,marketing:true}));
   document.getElementById('cookie-necessary')?.addEventListener('click',()=>save({}));
