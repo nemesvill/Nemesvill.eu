@@ -13,22 +13,7 @@
 <link rel="stylesheet" href="gallery.css">
 <link rel="icon" href="assets/logo.png">
 
-<!-- OpenAI Ads Pixel -->
-<script>
-!function(w,d,s,u){
-  if(w.oaiq)return;
-  var q=function(){q.q.push(arguments)};
-  q.q=[];
-  w.oaiq=q;
-  var j=d.createElement(s);
-  j.async=1;
-  j.src=u;
-  var f=d.getElementsByTagName(s)[0];
-  f.parentNode.insertBefore(j,f)
-}(window,document,"script","https://bzrcdn.openai.com/sdk/oaiq.min.js");
 
-oaiq("init",{pixelId:"1j4pppdUxbfvLx8CPru2mx"});
-</script>
  
 <meta property="og:title" content="Klímaszerelés Dunaújváros – Hivatalos Midea partner">
 <meta property="og:description" content="Klíma telepítés, tisztítás és karbantartás Dunaújvárosban és környékén. Hivatalos Midea szerviz és viszonteladó.">
@@ -174,9 +159,11 @@ Hivatalos Midea szerviz- és viszonteladó partnerként Midea klímaberendezése
 <div class="small">
 © 2026 Nemes László e.v. – Klímaszerelés Dunaújváros
 </div>
+<a href="adatvedelem.html">Adatvédelmi tájékoztató</a> · <button type="button" data-cookie-settings-open class="cookie-preferences-link">Süti beállítások</button>
 </div>
 </footer>
 
+<div class="cookie-banner" id="cookie-banner" role="dialog" aria-label="Süti beállítások" hidden><div><strong>Az Ön adatainak védelme fontos</strong><p>A szükséges működés mellett statisztikai és marketingmérést is használhatunk az Ön hozzájárulásával.</p><a href="adatvedelem.html">Adatvédelmi tájékoztató</a></div><div class="cookie-banner-actions"><button type="button" class="btn btn-outline" id="cookie-necessary">Csak szükségesek</button><button type="button" class="btn btn-outline" id="cookie-open-settings">Beállítások</button><button type="button" class="btn btn-primary" id="cookie-accept-all">Összes elfogadása</button></div><div id="cookie-settings" hidden><h3>Süti-beállítások</h3><p><strong>Szükséges</strong> – mindig aktív.</p><label><input type="checkbox" checked disabled> Szükséges technológiák</label><label><input type="checkbox" id="cookie-analytics"> Statisztikai mérés (GA4 – későbbi bekapcsolás)</label><label><input type="checkbox" id="cookie-marketing"> Marketingmérés (OpenAI Ads Pixel)</label><div class="cookie-banner-actions"><button type="button" class="btn btn-outline" id="cookie-close-settings">Vissza</button><button type="button" class="btn btn-primary" id="cookie-save-settings">Beállítások mentése</button></div></div></div>
 <script src="app.js"></script>
 <script src="gallery.js" defer></script>
 </body>
