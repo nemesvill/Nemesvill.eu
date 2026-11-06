@@ -473,6 +473,24 @@ actions.append(deleteButton);
         lead.location_text
       ].filter(Boolean).join(' · ');
 
+      const isClosed = ['lost', 'archived'].includes(lead.status) && lead.closed_at;
+      if (isClosed) {
+        const expiry = new Date(lead.closed_at.replace(' ', 'T'));
+        expiry.setMonth(expiry.getMonth() + 12);
+        const daysLeft = Math.ceil((expiry.getTime() - Date.now()) / 86400000);
+        const retention = document.createElement('p');
+        retention.className = 'muted';
+        if (daysLeft <= 0) {
+          retention.textContent = 'Adatmegőrzés: lejárt – törlésre vár';
+          retention.dataset.type = 'warning';
+        } else if (daysLeft <= 30) {
+          retention.textContent = 'Adatmegőrzés: ' + daysLeft + ' nap múlva lejár';
+        } else {
+          retention.textContent = 'Adatmegőrzés lejárata: ' + expiry.toLocaleDateString('hu-HU');
+        }
+        details.append(retention);
+      }
+
       const description = document.createElement('p');
       description.textContent = lead.description || '';
 
@@ -491,7 +509,28 @@ const actions = document.createElement('div');
 actions.className = 'list-actions';
 actions.append(editButton);
 
-// Érdeklődés törlése
+// Lejárt adatmegőrzésű érdeklődés törlése
+if (['lost', 'archived'].includes(lead.status) && lead.closed_at) {
+  const expiry = new Date(lead.closed_at.replace(' ', 'T'));
+  expiry.setMonth(expiry.getMonth() + 12);
+  if (expiry.getTime() <= Date.now()) {
+    const retentionDeleteButton = document.createElement('button');
+    retentionDeleteButton.type = 'button';
+    retentionDeleteButton.textContent = 'Lejárt adat törlése';
+    retentionDeleteButton.addEventListener('click', async () => {
+      if (!confirm('Lejárt a 12 hónapos megőrzési idő. Törlöd az érdeklődést és – ha nincs más kapcsolata – az ügyfél kapcsolati adatait is?')) return;
+      try {
+        await api('/api/leads/' + encodeURIComponent(lead.id) + '/retention-delete', { method: 'POST' });
+        await loadLeads();
+        await loadCustomers();
+        showMessage(leadListMessage, 'A lejárt érdeklődés törölve. A kapcsolódó ügyféladatok törlése csak akkor történt meg, ha nem volt más kapcsolódás.', 'success');
+      } catch (error) { showMessage(leadListMessage, error.message, 'error'); }
+    });
+    actions.append(retentionDeleteButton);
+  }
+}
+
+// Kézi érdeklődés törlése
 const deleteButton = document.createElement('button');
 deleteButton.type = 'button';
 deleteButton.textContent = 'Törlés';
