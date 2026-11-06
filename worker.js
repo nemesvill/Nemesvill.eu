@@ -1268,7 +1268,7 @@ export default {
         }, 200, cors);
       }
 // Adatmegőrzési határidő: lejárt érdeklődés törlése és árva ügyféladatok takarítása.
-const retentionDeleteMatch = url.pathname.match(/^\\/api\\/leads\\/([^/]+)\\/retention-delete$/);
+const retentionDeleteMatch = url.pathname.match(/^\/api\/leads\/([^/]+)\/retention-delete$/);
 if (retentionDeleteMatch && request.method === "POST") {
   const id = retentionDeleteMatch[1];
   const lead = await env.DB.prepare(
