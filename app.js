@@ -1,4 +1,3 @@
-
 document.addEventListener('DOMContentLoaded', ()=>{
   const btn = document.querySelector('#nav-toggle');
   const menu = document.querySelector('#nav-menu');
@@ -51,10 +50,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
 document.addEventListener('DOMContentLoaded', () => {
   const key='nemesvill_cookie_consent_v1';
+  const measurementId='G-FYRMXKR5MS';
   const banner=document.getElementById('cookie-banner');
   const settings=document.getElementById('cookie-settings');
   if(!banner||!settings)return;
+
   const read=()=>{try{return JSON.parse(localStorage.getItem(key)||'null')}catch(e){return null}};
+
+  const updateGoogleConsent=(analytics)=>{
+    if(typeof window.gtag==='function'){
+      window.gtag('consent','update',{
+        analytics_storage:analytics?'granted':'denied',
+        ad_storage:'denied',
+        ad_user_data:'denied',
+        ad_personalization:'denied'
+      });
+    }
+  };
+
+  const loadAnalytics=()=>{
+    if(window.nemesvillGa4Loaded)return;
+    window.nemesvillGa4Loaded=true;
+    window.dataLayer=window.dataLayer||[];
+    window.gtag=window.gtag||function(){window.dataLayer.push(arguments);};
+    window.gtag('consent','default',{
+      analytics_storage:'denied',
+      ad_storage:'denied',
+      ad_user_data:'denied',
+      ad_personalization:'denied'
+    });
+    window.gtag('consent','update',{
+      analytics_storage:'granted',
+      ad_storage:'denied',
+      ad_user_data:'denied',
+      ad_personalization:'denied'
+    });
+    window.gtag('js',new Date());
+    window.gtag('config',measurementId);
+    const s=document.createElement('script');
+    s.async=true;
+    s.src='https://www.googletagmanager.com/gtag/js?id='+measurementId;
+    document.head.appendChild(s);
+  };
+
   const loadPixel=()=>{
     if(document.querySelector('[data-nemesvill-marketing="openai"]'))return;
     const s=document.createElement('script');s.async=true;s.dataset.nemesvillMarketing='openai';
@@ -62,13 +100,37 @@ document.addEventListener('DOMContentLoaded', () => {
     s.onload=()=>{if(window.oaiq)window.oaiq('init',{pixelId:'1j4pppdUxbfvLx8CPru2mx'});};
     document.head.appendChild(s);
   };
-  const apply=c=>{if(c&&c.marketing)loadPixel();};
-  const save=c=>{const v={necessary:true,analytics:!!c.analytics,marketing:!!c.marketing,savedAt:new Date().toISOString()};localStorage.setItem(key,JSON.stringify(v));banner.hidden=true;settings.hidden=true;apply(v);};
-  const current=read();if(current){banner.hidden=true;apply(current);}
+
+  const apply=c=>{
+    if(c&&c.analytics)loadAnalytics();
+    else updateGoogleConsent(false);
+    if(c&&c.marketing)loadPixel();
+  };
+
+  const save=c=>{
+    const v={necessary:true,analytics:!!c.analytics,marketing:!!c.marketing,savedAt:new Date().toISOString()};
+    localStorage.setItem(key,JSON.stringify(v));
+    banner.hidden=true;
+    settings.hidden=true;
+    apply(v);
+  };
+
+  const current=read();
+  if(current){banner.hidden=true;apply(current);}
+
   document.getElementById('cookie-accept-all')?.addEventListener('click',()=>save({analytics:true,marketing:true}));
   document.getElementById('cookie-necessary')?.addEventListener('click',()=>save({}));
   document.getElementById('cookie-open-settings')?.addEventListener('click',()=>settings.hidden=false);
   document.getElementById('cookie-close-settings')?.addEventListener('click',()=>settings.hidden=true);
-  document.getElementById('cookie-save-settings')?.addEventListener('click',()=>save({analytics:document.getElementById('cookie-analytics').checked,marketing:document.getElementById('cookie-marketing').checked}));
-  document.querySelectorAll('[data-cookie-settings-open]').forEach(b=>b.addEventListener('click',()=>{const c=read();document.getElementById('cookie-analytics').checked=!!c?.analytics;document.getElementById('cookie-marketing').checked=!!c?.marketing;banner.hidden=false;settings.hidden=false;}));
+  document.getElementById('cookie-save-settings')?.addEventListener('click',()=>save({
+    analytics:document.getElementById('cookie-analytics').checked,
+    marketing:document.getElementById('cookie-marketing').checked
+  }));
+  document.querySelectorAll('[data-cookie-settings-open]').forEach(b=>b.addEventListener('click',()=>{
+    const c=read();
+    document.getElementById('cookie-analytics').checked=!!c?.analytics;
+    document.getElementById('cookie-marketing').checked=!!c?.marketing;
+    banner.hidden=false;
+    settings.hidden=false;
+  }));
 });
