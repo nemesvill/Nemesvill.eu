@@ -39,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
       form.reset();
       status.textContent = 'Köszönöm! Az ajánlatkérés sikeresen megérkezett. Hamarosan felveszem Önnel a kapcsolatot.';
       status.classList.add('is-success');
+      trackGa4('generate_lead', { method: 'quote_form', service: payload.service || 'unspecified' });
     } catch (error) {
       status.textContent = error.message || 'Hiba történt a küldés során. Kérjük, próbálja újra vagy hívjon telefonon.';
       status.classList.add('is-error');
@@ -46,6 +47,27 @@ document.addEventListener('DOMContentLoaded', () => {
       if (submitButton) submitButton.disabled = false;
     }
   });
+});
+
+function trackGa4(eventName, parameters = {}) {
+  try {
+    const consent = JSON.parse(localStorage.getItem('nemesvill_cookie_consent_v1') || 'null');
+    if (!consent || consent.analytics !== true || typeof window.gtag !== 'function') return;
+    window.gtag('event', eventName, parameters);
+  } catch (error) {
+    // A mérés hibája nem befolyásolhatja az oldal működését.
+  }
+}
+
+document.addEventListener('click', (event) => {
+  const link = event.target.closest('a[href]');
+  if (!link) return;
+  const href = link.getAttribute('href') || '';
+  if (href.startsWith('tel:')) {
+    trackGa4('click_to_call', { link_url: href });
+  } else if (href.startsWith('mailto:')) {
+    trackGa4('click_to_email', { link_url: href });
+  }
 });
 
 document.addEventListener('DOMContentLoaded', () => {
