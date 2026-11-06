@@ -1148,6 +1148,7 @@ export default {
         }
 
         const id = crypto.randomUUID();
+        if (["lost", "archived"].includes(data.status)) data.closed_at = new Date().toISOString().slice(0, 19).replace("T", " ");
         const keys = ["id", ...Object.keys(data)];
         const values = [id, ...Object.keys(data).map(k => data[k])];
 
@@ -1266,6 +1267,50 @@ export default {
           leads: items
         }, 200, cors);
       }
+// Adatmegőrzési határidő: lejárt érdeklődés törlése és árva ügyféladatok takarítása.
+const retentionDeleteMatch = url.pathname.match(/^\\/api\\/leads\\/([^/]+)\\/retention-delete$/);
+if (retentionDeleteMatch && request.method === "POST") {
+  const id = retentionDeleteMatch[1];
+  const lead = await env.DB.prepare(
+    "SELECT id, customer_id, status, closed_at FROM leads WHERE id = ?"
+  ).bind(id).first();
+
+  if (!lead) return json({ error: "Az érdeklődő nem található." }, 404, cors);
+  if (!["lost", "archived"].includes(lead.status) || !lead.closed_at) {
+    return json({ error: "Ez az érdeklődés még nem törölhető a megőrzési szabály alapján." }, 409, cors);
+  }
+
+  const expiry = await env.DB.prepare(
+    "SELECT date(?, '+12 months') AS expires_on, date('now') AS today"
+  ).bind(lead.closed_at).first();
+  if (!expiry?.expires_on || expiry.expires_on > expiry.today) {
+    return json({ error: "A 12 hónapos megőrzési idő még nem járt le." }, 409, cors);
+  }
+
+  await env.DB.prepare("DELETE FROM leads WHERE id = ?").bind(id).run();
+
+  let customerCleaned = false;
+  if (lead.customer_id) {
+    const references = await env.DB.prepare(
+      `SELECT
+        (SELECT COUNT(*) FROM leads WHERE customer_id = ?) AS lead_count,
+        (SELECT COUNT(*) FROM jobs WHERE customer_id = ?) AS job_count,
+        (SELECT COUNT(*) FROM quotes WHERE customer_id = ?) AS quote_count`
+    ).bind(lead.customer_id, lead.customer_id, lead.customer_id).first();
+
+    if (Number(references?.lead_count || 0) === 0 &&
+        Number(references?.job_count || 0) === 0 &&
+        Number(references?.quote_count || 0) === 0) {
+      await env.DB.prepare(
+        "UPDATE customers SET deleted_at = datetime('now'), updated_at = datetime('now') WHERE id = ? AND deleted_at IS NULL"
+      ).bind(lead.customer_id).run();
+      customerCleaned = true;
+    }
+  }
+
+  return json({ success: true, customer_cleaned: customerCleaned }, 200, cors);
+}
+
 // Meglévő érdeklődés módosítása
 const leadMatch = url.pathname.match(/^\/api\/leads\/([^/]+)$/);
 
@@ -1273,7 +1318,7 @@ if (leadMatch && request.method === "PUT") {
   const id = leadMatch[1];
 
   const existing = await env.DB.prepare(
-    "SELECT id FROM leads WHERE id = ?"
+    "SELECT id, status, closed_at FROM leads WHERE id = ?"
   ).bind(id).first();
 
   if (!existing) {
@@ -1308,9 +1353,12 @@ if (leadMatch && request.method === "PUT") {
     return json({ error: "Nincs módosítandó adat." }, 400, cors);
   }
 
+  const nextStatus = data.status || existing.status;
+  const closureFields = ["lost", "archived"].includes(nextStatus)
+    ? (existing.closed_at ? [] : ["closed_at = datetime('now')"])
+    : ["closed_at = NULL"];
   const result = await env.DB.prepare(
-    `UPDATE leads SET ${keys.map(key => `${key} = ?`).join(", ")},
-     updated_at = datetime('now')
+    `UPDATE leads SET ${keys.map(key => `${key} = ?`).join(", ")}${keys.length ? ", " : ""}${[...closureFields, "updated_at = datetime('now')"].join(", ")}
      WHERE id = ?`
   ).bind(...keys.map(key => data[key]), id).run();
 
