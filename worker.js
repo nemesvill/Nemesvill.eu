@@ -22,6 +22,8 @@ const CUSTOMER_FIELDS = [
 
 const LEAD_FIELDS = [
   "customer_id",
+  "contact_name",
+  "contact_phone",
   "service_type",
   "source",
   "status",
@@ -820,6 +822,13 @@ export default {
       }
 
       const maintenanceMatch = url.pathname.match(/^\/api\/maintenance\/([^/]+)$/);
+      if (maintenanceMatch && request.method === "DELETE") {
+        const result = await env.DB.prepare("DELETE FROM maintenance_records WHERE id = ?")
+          .bind(maintenanceMatch[1]).run();
+        if (!result.meta?.changes) return json({ error: "A klímaberendezés nem található." }, 404, cors);
+        return json({ success: true, message: "A klímaberendezés és karbantartási nyilvántartása törölve." }, 200, cors);
+      }
+
       if (maintenanceMatch && request.method === "PUT") {
         const id = maintenanceMatch[1];
         const data = await readBody(request) || {};
@@ -1291,8 +1300,8 @@ export default {
         const result = await env.DB.prepare(
           `SELECT
              leads.*,
-             customers.name AS customer_name,
-             customers.phone AS customer_phone,
+             COALESCE(customers.name, leads.contact_name) AS customer_name,
+             COALESCE(customers.phone, leads.contact_phone) AS customer_phone,
              customers.email AS customer_email
            FROM leads
            LEFT JOIN customers ON customers.id = leads.customer_id
