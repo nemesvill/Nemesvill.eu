@@ -363,7 +363,13 @@ export default {
         const graphData = await graphResponse.json().catch(() => ({}));
 
         if (!graphResponse.ok || graphData.error) {
-          console.error("Facebook Graph API error:", graphData.error?.message || graphResponse.status);
+          console.error("Facebook Graph API error:", JSON.stringify({
+            httpStatus: graphResponse.status,
+            type: graphData.error?.type || null,
+            code: graphData.error?.code || null,
+            error_subcode: graphData.error?.error_subcode || null,
+            message: graphData.error?.message || "Unknown Facebook API error"
+          }));
           return json({ error: "A Facebook-bejegyzések most nem tölthetők be." }, 502, cors);
         }
 
