@@ -118,10 +118,21 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const loadPixel=()=>{
+    if(window.oaiq){
+      window.oaiq('consent',true);
+      return;
+    }
     if(document.querySelector('[data-nemesvill-marketing="openai"]'))return;
     const s=document.createElement('script');s.async=true;s.dataset.nemesvillMarketing='openai';
     s.src='https://bzrcdn.openai.com/sdk/oaiq.min.js';
-    s.onload=()=>{if(window.oaiq)window.oaiq('init',{pixelId:'1j4pppdUxbfvLx8CPru2mx'});};
+    s.onload=()=>{
+      if(!window.oaiq)return;
+      // Alapértelmezésben tiltás; csak az érvényes marketing-hozzájárulás után engedélyezünk.
+      window.oaiq('consent',false);
+      window.oaiq('init',{pixelId:'1j4pppdUxbfvLx8CPru2mx'});
+      const latest=read();
+      if(latest&&latest.marketing===true)window.oaiq('consent',true);
+    };
     document.head.appendChild(s);
   };
 
@@ -129,6 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if(c&&c.analytics)loadAnalytics();
     else updateGoogleConsent(false);
     if(c&&c.marketing)loadPixel();
+    else if(typeof window.oaiq==='function')window.oaiq('consent',false);
   };
 
   const save=c=>{
