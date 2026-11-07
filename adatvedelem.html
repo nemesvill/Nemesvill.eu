@@ -38,7 +38,7 @@
 
 <h2>4. Adatmegőrzési idők</h2>
 <ul>
-<li><strong>Megrendeléssé nem vált ajánlatkérés:</strong> az ügy lezárásától számított 12 hónap, ezt követően törlésre kerül, kivéve, ha jogszabály vagy folyamatban lévő, illetve előrelátható jogi igény hosszabb megőrzést indokol.</li>
+<li><strong>Megrendeléssé nem vált ajánlatkérés:</strong> az ügy lezárásától számított 12 hónap. A megőrzési idő lejárta után az érdeklődő kézi intézkedéssel törölhető a CRM-ből; a törlés nem automatikus. Jogszabály vagy folyamatban lévő, illetve előrelátható jogi igény hosszabb megőrzést indokolhat.</li>
 <li><strong>Szerződéses és ügyféladatok:</strong> a szerződéses kapcsolat fennállása alatt, majd az igényérvényesítéshez szükséges ideig; főszabály szerint a polgári jogi elévülési idő figyelembevételével.</li>
 <li><strong>Számviteli bizonylatok és az azokat alátámasztó nyilvántartások:</strong> a számvitelről szóló törvény szerinti legalább 8 éves megőrzési időben.</li>
 <li><strong>Sütibeállítási hozzájárulás:</strong> a választás igazolásához szükséges ideig, illetve a böngészőben tárolt beállítás törléséig.</li>
@@ -49,9 +49,9 @@
 <h2>5. Sütik, statisztikai és marketingmérés</h2>
 <p>A weboldal a működéséhez szükséges technikai megoldásokat használ. Ezek mellett külön hozzájárulás alapján statisztikai és marketingmérési technológiák is működhetnek.</p>
 <ul>
-<li><strong>Szükséges technológiák:</strong> a weboldal alapvető működését és a választott süti-beállítások megjegyzését szolgálják. Ezek a weboldal működéséhez szükségesek.</li>
-<li><strong>Statisztikai mérés – Google Analytics 4:</strong> a weboldal használatáról készít összesített statisztikákat. Csak a statisztikai méréshez adott hozzájárulás után töltődik be.</li>
-<li><strong>Marketingmérés – OpenAI Ads Pixel:</strong> marketingcélú mérési technológia. Csak a marketing-hozzájárulás után töltődik be.</li>
+<li><strong>Szükséges technológiák:</strong> a weboldal alapvető működését és a választott beállítások megjegyzését szolgálják. A hozzájárulási választás a látogató böngészőjének helyi tárhelyén (<code>localStorage</code>) tárolódik a <code>nemesvill_cookie_consent_v1</code> kulcs alatt. Ez önmagában nem böngészősüti.</li>
+<li><strong>Statisztikai mérés – Google Analytics 4:</strong> a weboldal használatáról készít statisztikákat. A mérőkód csak a statisztikai hozzájárulás után töltődik be. A Google Analytics a beállításoktól függően sütiket és más azonosítókat használhat; a sütik pontos neve és megőrzési ideje a Google Analytics konfigurációjától függ.</li>
+<li><strong>Marketingmérés – OpenAI Ads Measurement Pixel:</strong> marketingkampányok eredményességének mérésére szolgál. Csak a marketing-hozzájárulás után töltődik be. A pixel a dokumentáció szerint <code>__oppref</code> nevű sütit 30 napig, <code>__obref</code> nevű sütit 365 napig tárolhat. A böngésző beállításai vagy a sütik törlése ezt az időt lerövidítheti.</li>
 </ul>
 <p>A statisztikai és marketingmérési hozzájárulás önkéntes, és nem feltétele a weboldal használatának vagy az ajánlatkérésnek. A hozzájárulás a lábléc „Süti beállítások” hivatkozásával bármikor módosítható vagy visszavonható. A visszavonás nem érinti a korábbi adatkezelés jogszerűségét.</p>
 
@@ -59,10 +59,10 @@
 <p>A weboldal és a kapcsolódó ügyviteli folyamatok működtetéséhez az alábbi szolgáltatók vehetnek részt az adatkezelésben, a feladatukhoz szükséges mértékben:</p>
 <ul>
 <li><strong>Cloudflare, Inc.:</strong> weboldal-kiszolgálás, tartalomkézbesítés, biztonsági és szerveroldali infrastruktúra, valamint a CRM API és adatbázis-infrastruktúra működtetése.</li>
-<li><strong>Resend, Inc.:</strong> a weboldali ajánlatkérések és a CRM értesítő e-mailjeinek továbbítása.</li>
+<li><strong>Plus Five Five, Inc. (Resend):</strong> a weboldali ajánlatkérések és a CRM értesítő e-mailjeinek továbbítása. A szolgáltató az e-mailek címzettjeinek e-mail-címét, az üzenet tartalmát és a kézbesítéshez kapcsolódó metaadatokat kezelheti.</li>
 <li><strong>Google LLC:</strong> Google Analytics 4 statisztikai mérés, kizárólag a látogató hozzájárulása esetén.</li>
 <li><strong>OpenAI:</strong> marketingmérési pixel, kizárólag a látogató marketing-hozzájárulása esetén.</li>
-<li><strong>Meta Platforms, Inc.:</strong> a vállalkozás nyilvános Facebook-oldaláról származó bejegyzések lekérése és megjelenítése. A bejegyzések lekérése szerveroldalon történik; a látogató a bejegyzés eredeti Facebook-hivatkozására kattintva a Facebook oldalára kerül.</li>
+<li><strong>Meta Platforms, Inc.:</strong> a vállalkozás nyilvános Facebook-oldaláról származó bejegyzések lekérése és megjelenítése a Meta Graph API-n keresztül. A lekérés szerveroldalon történik; a weboldal látogatójának böngészője nem tölt be közvetlenül Meta Facebook-követőkódot a bejegyzések megjelenítéséhez. A látogató a bejegyzés eredeti Facebook-hivatkozására kattintva a Facebook oldalára kerül, ahol a Meta saját adatkezelési szabályai érvényesek.</li>
 </ul>
 <p>A fenti szolgáltatók saját adatvédelmi tájékoztatóik szerint is kezelhetnek adatokat. Egyes szolgáltatók az Európai Gazdasági Térségen kívül is működtethetnek infrastruktúrát; ilyen esetben az adattovábbításra a GDPR szerinti megfelelő garanciák – például megfelelőségi határozat vagy általános szerződési feltételek – alkalmazandók. A szolgáltatók aktuális adatfeldolgozói feltételeit és az alkalmazott adattovábbítási garanciákat az adatkezelő a szolgáltatói szerződésekben és beállításokban tartja nyilván.</p>
 
