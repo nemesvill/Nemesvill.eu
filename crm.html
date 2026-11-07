@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="/assets/pwa-icon.svg">
   <title>Nemesvill CRM – Ügyviteli rendszer</title>
   <link rel="stylesheet" href="crm.css">
- <script src="crm.js?v=20261106-21" defer></script>
+ <script src="crm.js?v=20261107-22" defer></script>
 </head>
 <body>
   <main class="shell">
@@ -72,6 +72,14 @@
           <small id="dbDetail">Kapcsolat tesztelése</small>
         </article>
       </div>
+
+      <!-- MAI TEENDŐK -->
+      <section class="panel coming-panel" id="dailyTasksSection">
+        <div class="eyebrow">NAPI UTÓKÖVETÉS</div>
+        <h2>Mai teendők</h2>
+        <p class="muted">A mai napra és korábbra beállított, még nyitott visszahívások.</p>
+        <div id="dailyTasksList" aria-live="polite"><p class="muted">Teendők betöltése…</p></div>
+      </section>
 
       <!-- NAPTÁR -->
       <section class="panel coming-panel" id="calendarSection">
