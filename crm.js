@@ -3,6 +3,14 @@
 
   const $ = (id) => document.getElementById(id);
 
+  // Helyi naptári dátum – ne UTC alapján válasszuk ki a mai napot.
+  function localDateString(date = new Date()) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
   let customers = [];
   let leads = [];
 
@@ -935,7 +943,7 @@ showMessage(
       const workForm = document.createElement('form');
       workForm.className = 'job-cost-form';
       workForm.innerHTML =
-        '<label>Munkanap<input name="work_date" type="date" required value="' + new Date().toISOString().slice(0,10) + '"></label>' +
+        '<label>Munkanap<input name="work_date" type="date" required value="' + localDateString() + '"></label>' +
         '<label>Kezdés<input name="start_time" type="time"></label>' +
         '<label>Befejezés<input name="end_time" type="time"></label>' +
         '<label>Munkaidő (perc)<input name="duration_minutes" type="number" min="0" max="1440" step="1" value="0" required></label>' +
@@ -976,7 +984,7 @@ showMessage(
         paidButton.addEventListener('click', async () => {
           let paidDate = null;
           if (!item.paid) {
-            paidDate = prompt('Mikor érkezett meg ténylegesen az összeg? (ÉÉÉÉ-HH-NN)', new Date().toISOString().slice(0,10));
+            paidDate = prompt('Mikor érkezett meg ténylegesen az összeg? (ÉÉÉÉ-HH-NN)', localDateString());
             if (paidDate === null) return;
             if (!/^\d{4}-\d{2}-\d{2}$/.test(paidDate)) { alert('A dátum formátuma ÉÉÉÉ-HH-NN legyen.'); return; }
           }
@@ -1004,7 +1012,7 @@ showMessage(
       incomeForm.className = 'job-cost-form';
       incomeForm.innerHTML =
         '<label>Számlaszám<input name="invoice_number" maxlength="100" placeholder="Pl. NV-2026-001"></label>' +
-        '<label>Dátum<input name="income_date" type="date" required value="' + new Date().toISOString().slice(0,10) + '"></label>' +
+        '<label>Dátum<input name="income_date" type="date" required value="' + localDateString() + '"></label>' +
         '<label>Megnevezés<input name="description" required maxlength="500" placeholder="Pl. klímaszerelés munkadíja"></label>' +
         '<label>Számla összege (Ft)<input name="gross_amount" type="number" min="1" step="1" required></label>' +
         '<label class="job-income-paid"><input name="paid" type="checkbox" value="1"> Már ki van fizetve</label>' +
@@ -1014,7 +1022,7 @@ showMessage(
       const paidDateInput = incomeForm.querySelector('input[name="paid_date"]');
       paidCheckbox.addEventListener('change', () => {
         paidDateInput.disabled = !paidCheckbox.checked;
-        if (paidCheckbox.checked && !paidDateInput.value) paidDateInput.value = new Date().toISOString().slice(0,10);
+        if (paidCheckbox.checked && !paidDateInput.value) paidDateInput.value = localDateString();
         if (!paidCheckbox.checked) paidDateInput.value = '';
       });
       incomeForm.addEventListener('submit', async event => {
@@ -1938,7 +1946,7 @@ if (newJobButton) {
     $('saveQuoteButton').textContent = 'Árajánlat mentése';
     if (quoteItems) quoteItems.innerHTML = '';
     populateQuoteSelectors();
-    const issueDate = new Date().toISOString().slice(0, 10);
+    const issueDate = localDateString();
     if ($('quoteIssueDate')) $('quoteIssueDate').value = issueDate;
     if ($('quoteValidUntil')) $('quoteValidUntil').value = addDaysToDate(issueDate, 15);
     if (quoteFormPanel) quoteFormPanel.hidden = false;
@@ -1999,7 +2007,7 @@ if (newJobButton) {
   let maintenanceItems = [];
   let maintenanceFilterValue = 'all';
 
-  function maintenanceDateState(item, today = new Date().toISOString().slice(0, 10)) {
+  function maintenanceDateState(item, today = localDateString()) {
     if (!item.next_service_on) return 'undated';
     if (item.next_service_on < today) return 'overdue';
     const limit = addDaysToDate(today, 30);
@@ -2031,7 +2039,7 @@ if (newJobButton) {
   function renderMaintenance() {
     if (!maintenanceList) return;
     const query = (maintenanceSearch?.value || '').trim().toLocaleLowerCase('hu-HU');
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDateString();
     const overdueCount = maintenanceItems.filter(item => maintenanceDateState(item, today) === 'overdue').length;
     const soonCount = maintenanceItems.filter(item => maintenanceDateState(item, today) === 'soon').length;
     const totalCount = maintenanceItems.length;
@@ -2063,7 +2071,7 @@ if (newJobButton) {
       detail.textContent = [item.customer_name, item.serial_number ? 'Gyári szám: ' + item.serial_number : '', item.installed_on ? 'Telepítve: ' + item.installed_on : ''].filter(Boolean).join(' · ');
       const due = document.createElement('p');
       due.className = 'maintenance-due';
-      const today = new Date().toISOString().slice(0,10);
+      const today = localDateString();
       const days = item.next_service_on ? Math.ceil((Date.parse(item.next_service_on + 'T00:00:00Z') - Date.parse(today + 'T00:00:00Z')) / 86400000) : null;
       due.textContent = item.next_service_on
         ? (days < 0 ? 'Lejárt karbantartás: ' : days <= 30 ? 'Hamarosan esedékes: ' : 'Következő karbantartás: ') + item.next_service_on
@@ -2079,7 +2087,7 @@ if (newJobButton) {
       const customer = customers.find(entry => String(entry.id) === String(item.customer_id));
       if (customer?.phone) {
         const phone = document.createElement('a');
-        phone.href = 'tel:' + String(customer.phone).replace(/[^+\\d]/g, '');
+        phone.href = 'tel:' + String(customer.phone).replace(/[^+\d]/g, '');
         phone.textContent = 'Telefon: ' + customer.phone;
         contact.append(phone);
       }
@@ -2100,7 +2108,7 @@ if (newJobButton) {
       done.type = 'button';
       done.textContent = 'Karbantartás elvégezve';
       done.addEventListener('click', async () => {
-        const date = new Date().toISOString().slice(0,10);
+        const date = localDateString();
         try {
           await api('/api/maintenance/' + encodeURIComponent(item.id), {
             method: 'PUT',
@@ -2268,13 +2276,13 @@ if (newJobButton) {
     if(!expenseList)return;
     try{const d=await api('/api/expenses');expenseList.innerHTML='';
       (d.items||[]).forEach(item=>{const row=document.createElement('div');row.className='expense-row';const info=document.createElement('div');const title=document.createElement('strong');title.textContent=item.expense_date+' · '+item.category+' · '+item.description;const meta=document.createElement('p');meta.className='muted';meta.textContent=[money(item.gross_amount),item.supplier,item.document_ref,item.job_number?'Munka: '+item.job_number:'Általános',item.paid===1?'Fizetve: '+item.paid_date:item.paid===0?'Nem fizetett':'Régi tétel – státusz ismeretlen'].filter(Boolean).join(' · ');info.append(title,meta);const actions=document.createElement('div');actions.className='expense-actions';
-        if(item.paid!==1){const pay=document.createElement('button');pay.type='button';pay.textContent='Fizetettnek jelöl';pay.addEventListener('click',async()=>{const date=prompt('Mikor fizetted ki? (ÉÉÉÉ-HH-NN)',new Date().toISOString().slice(0,10));if(date===null)return;if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){alert('Hibás dátumformátum.');return;}try{await api('/api/expenses/'+encodeURIComponent(item.id),{method:'PUT',body:JSON.stringify({paid:true,paid_date:date})});await Promise.all([loadExpenses(),loadFinancial()]);}catch(e){alert(e.message);}});actions.append(pay);}
+        if(item.paid!==1){const pay=document.createElement('button');pay.type='button';pay.textContent='Fizetettnek jelöl';pay.addEventListener('click',async()=>{const date=prompt('Mikor fizetted ki? (ÉÉÉÉ-HH-NN)',localDateString());if(date===null)return;if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){alert('Hibás dátumformátum.');return;}try{await api('/api/expenses/'+encodeURIComponent(item.id),{method:'PUT',body:JSON.stringify({paid:true,paid_date:date})});await Promise.all([loadExpenses(),loadFinancial()]);}catch(e){alert(e.message);}});actions.append(pay);}
         const del=document.createElement('button');del.type='button';del.className='secondary';del.textContent='Törlés';del.addEventListener('click',async()=>{if(!confirm('Biztosan törlöd ezt a kiadást?'))return;try{await api('/api/expenses/'+encodeURIComponent(item.id),{method:'DELETE'});await Promise.all([loadExpenses(),loadFinancial()]);}catch(e){alert(e.message);}});actions.append(del);row.append(info,actions);expenseList.append(row);});
       if(!(d.items||[]).length)expenseList.textContent='Még nincs rögzített kiadás.';
     }catch(e){showMessage(expenseMessage,e.message,'error');}
   }
   const expensePaid=expenseForm?.elements.namedItem('paid'), expensePaidDate=expenseForm?.elements.namedItem('paid_date');
-  if(expenseForm){expenseForm.elements.namedItem('expense_date').value=new Date().toISOString().slice(0,10);expensePaid.addEventListener('change',()=>{expensePaidDate.disabled=!expensePaid.checked;if(expensePaid.checked&&!expensePaidDate.value)expensePaidDate.value=new Date().toISOString().slice(0,10);});expenseForm.addEventListener('submit',async event=>{event.preventDefault();const p=Object.fromEntries(new FormData(expenseForm).entries());p.gross_amount=Number(p.gross_amount);p.paid=expensePaid.checked;p.paid_date=p.paid?expensePaidDate.value:null;p.job_id=p.job_id||null;try{await api('/api/expenses',{method:'POST',body:JSON.stringify(p)});expenseForm.reset();expenseForm.elements.namedItem('expense_date').value=new Date().toISOString().slice(0,10);expensePaidDate.disabled=true;showMessage(expenseMessage,'Kiadás elmentve.','success');await Promise.all([loadExpenses(),loadFinancial()]);}catch(e){showMessage(expenseMessage,e.message,'error');}});}
+  if(expenseForm){expenseForm.elements.namedItem('expense_date').value=localDateString();expensePaid.addEventListener('change',()=>{expensePaidDate.disabled=!expensePaid.checked;if(expensePaid.checked&&!expensePaidDate.value)expensePaidDate.value=localDateString();});expenseForm.addEventListener('submit',async event=>{event.preventDefault();const p=Object.fromEntries(new FormData(expenseForm).entries());p.gross_amount=Number(p.gross_amount);p.paid=expensePaid.checked;p.paid_date=p.paid?expensePaidDate.value:null;p.job_id=p.job_id||null;try{await api('/api/expenses',{method:'POST',body:JSON.stringify(p)});expenseForm.reset();expenseForm.elements.namedItem('expense_date').value=localDateString();expensePaidDate.disabled=true;showMessage(expenseMessage,'Kiadás elmentve.','success');await Promise.all([loadExpenses(),loadFinancial()]);}catch(e){showMessage(expenseMessage,e.message,'error');}});}
   $('refreshFinancialButton')?.addEventListener('click',loadFinancial);financialMonth?.addEventListener('change',loadFinancial);financialYear?.addEventListener('change',loadFinancial);financialPeriod?.addEventListener('change',loadFinancial);
 
   // MUNKÁNKÉNTI NYERESÉGESSÉG
