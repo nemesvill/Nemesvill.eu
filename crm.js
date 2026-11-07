@@ -56,7 +56,9 @@
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      throw new Error(data.error || data.message || `HTTP hiba: ${response.status}`);
+      const message = data.error || data.message || `HTTP hiba: ${response.status}`;
+      const details = data.details ? ` – részletek: ${data.details}` : '';
+      throw new Error(message + details);
     }
 
     return data;
