@@ -2075,16 +2075,17 @@ if (newJobButton) {
       info.append(title, detail, due, note);
       const contact = document.createElement('p');
       contact.className = 'maintenance-contact';
-      if (item.customer_phone) {
+      const customer = customers.find(entry => String(entry.id) === String(item.customer_id));
+      if (customer?.phone) {
         const phone = document.createElement('a');
-        phone.href = 'tel:' + String(item.customer_phone).replace(/[^+\\d]/g, '');
-        phone.textContent = 'Telefon: ' + item.customer_phone;
+        phone.href = 'tel:' + String(customer.phone).replace(/[^+\\d]/g, '');
+        phone.textContent = 'Telefon: ' + customer.phone;
         contact.append(phone);
       }
-      if (item.customer_email) {
+      if (customer?.email) {
         const email = document.createElement('a');
-        email.href = 'mailto:' + item.customer_email;
-        email.textContent = 'E-mail: ' + item.customer_email;
+        email.href = 'mailto:' + customer.email;
+        email.textContent = 'E-mail: ' + customer.email;
         contact.append(email);
       }
       if (contact.childNodes.length) info.append(contact);
