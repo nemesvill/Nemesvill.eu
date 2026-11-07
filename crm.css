@@ -115,3 +115,12 @@
 .daily-task-complete{background:#42c6b9;color:#062c31;border:1px solid #42c6b9}
 .daily-task-complete:hover{filter:brightness(1.06)}
 @media(max-width:620px){.daily-task-actions{width:100%;flex-direction:column}.daily-task-actions button{width:100%}}
+
+
+/* Klímakarbantartási ügyfél-utánkövetés */
+#maintenanceFilter{max-width:230px;padding:12px 14px;border:1px solid #496174;border-radius:10px;background:#09131e;color:var(--text);font:inherit}
+.maintenance-summary{padding:12px 14px;margin:12px 0;border:1px solid var(--line);border-radius:10px;background:#091722}
+.maintenance-contact{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.9rem}
+.maintenance-contact a{color:var(--accent);text-decoration:none}
+.maintenance-contact a:hover{text-decoration:underline}
+@media(max-width:620px){#maintenanceFilter{max-width:none;width:100%}.maintenance-contact{flex-direction:column;gap:4px}}
