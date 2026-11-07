@@ -479,14 +479,43 @@ actions.append(deleteButton);
         meta.className = 'muted';
         meta.textContent = [formatDateTime(lead.followUpText), lead.customer_phone, serviceLabel(lead.service_type)].filter(Boolean).join(' · ');
         details.append(subject, customer, meta);
-        const edit = document.createElement('button');
-        edit.type = 'button';
-        edit.textContent = 'Megnyitás';
-        edit.addEventListener('click', () => {
+        const actions = document.createElement('div');
+        actions.className = 'daily-task-actions';
+
+        const reschedule = document.createElement('button');
+        reschedule.type = 'button';
+        reschedule.className = 'secondary';
+        reschedule.textContent = 'Új időpont';
+        reschedule.addEventListener('click', () => {
           editLead(lead);
           leadFormPanel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          leadFollowUp?.focus();
         });
-        row.append(details, edit);
+
+        const complete = document.createElement('button');
+        complete.type = 'button';
+        complete.className = 'daily-task-complete';
+        complete.textContent = 'Elvégezve';
+        complete.addEventListener('click', async () => {
+          if (complete.disabled) return;
+          complete.disabled = true;
+          complete.textContent = 'Mentés…';
+          try {
+            await api(`/api/leads/${encodeURIComponent(lead.id)}`, {
+              method: 'PUT',
+              body: JSON.stringify({ follow_up_at: null })
+            });
+            await loadLeads();
+            showMessage(leadListMessage, 'Visszahívás elvégezve, a teendő lezárva.', 'success');
+          } catch (error) {
+            complete.disabled = false;
+            complete.textContent = 'Elvégezve';
+            showMessage(leadListMessage, error.message, 'error');
+          }
+        });
+
+        actions.append(reschedule, complete);
+        row.append(details, actions);
         group.append(row);
       });
       container.append(group);

@@ -109,3 +109,9 @@
 .daily-task p{margin:3px 0}
 .daily-task button{margin:0;flex-shrink:0}
 @media(max-width:620px){.daily-task{align-items:flex-start;flex-direction:column}.daily-task button{width:100%}}
+
+.daily-task-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.daily-task-actions button{margin:0;white-space:nowrap}
+.daily-task-complete{background:#42c6b9;color:#062c31;border:1px solid #42c6b9}
+.daily-task-complete:hover{filter:brightness(1.06)}
+@media(max-width:620px){.daily-task-actions{width:100%;flex-direction:column}.daily-task-actions button{width:100%}}
