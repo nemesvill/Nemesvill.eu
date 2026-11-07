@@ -37,7 +37,9 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error(result.error || 'Az ajánlatkérés küldése most nem sikerült. Kérjük, próbálja újra vagy hívjon telefonon.');
       }
       form.reset();
-      status.textContent = 'Köszönöm! Az ajánlatkérés sikeresen megérkezett. Hamarosan felveszem Önnel a kapcsolatot.';
+      status.textContent = result.email_sent === false
+        ? 'Köszönöm! Az ajánlatkérés bekerült a rendszerbe. Az e-mailes értesítés most nem sikerült, de a megkeresés rögzítése megtörtént.'
+        : 'Köszönöm! Az ajánlatkérés sikeresen megérkezett. Hamarosan felveszem Önnel a kapcsolatot.';
       status.classList.add('is-success');
       trackGa4('generate_lead', { method: 'quote_form', service: payload.service || 'unspecified' });
     } catch (error) {
