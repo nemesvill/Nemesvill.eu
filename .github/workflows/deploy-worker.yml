@@ -13,13 +13,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Apply remote D1 migrations
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: d1 execute nemesvill-crm --remote --file=migrations/0005_lead_follow_up.sql
-
       - name: Deploy Worker to Cloudflare
         uses: cloudflare/wrangler-action@v3
         with:
