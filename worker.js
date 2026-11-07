@@ -442,18 +442,17 @@ export default {
       );
     }
 
-    // Nyilvános ajánlatkérés – csak a saját weboldalról, a meglévő Resend küldővel.
+    // Nyilvános ajánlatkérés – CRM érdeklődő + e-mail értesítés.
     if (url.pathname === "/api/public/quote-request" && request.method === "POST") {
-      if (!cors["Access-Control-Allow-Origin"] || origin !== "https://nemesvill.eu" && origin !== "https://www.nemesvill.eu") {
+      if (!cors["Access-Control-Allow-Origin"] || (origin !== "https://nemesvill.eu" && origin !== "https://www.nemesvill.eu")) {
         return json({ error: "A kérés forrása nem engedélyezett." }, 403, cors);
       }
-      if (!env.RESEND_API_KEY) return json({ error: "Az e-mail-küldés jelenleg nem elérhető." }, 503, cors);
       const contentLength = Number(request.headers.get("Content-Length") || 0);
       if (contentLength > 12000) return json({ error: "Túl nagy az elküldött üzenet." }, 413, cors);
       const data = await readBody(request);
       if (!data || typeof data !== "object") return json({ error: "Érvénytelen űrlapadatok." }, 400, cors);
 
-      // Honeypot: automatikus spam esetén csendes siker.
+      // Honeypot: automatikus spam esetén csendes siker, adatmentés nélkül.
       if (String(data.website || "").trim()) return json({ success: true }, 200, cors);
 
       const name = String(data.name || "").trim().slice(0, 100);
@@ -471,11 +470,42 @@ export default {
         return json({ error: "Kérjük, ellenőrizze az e-mail-címet." }, 400, cors);
       }
 
+      const serviceTypes = {
+        "Villanyszerelés": "villanyszereles",
+        "Klímaszerelés": "klimaszereles",
+        "Klímatisztítás / karbantartás": "klimaszereles",
+        "EV-töltő telepítés": "ev_tolto",
+        "Egyéb": "egyeb"
+      };
+      const customerId = crypto.randomUUID();
+      const leadId = crypto.randomUUID();
+      const subject = "Weboldali ajánlatkérés – " + service;
+      const description = [
+        "Forrás: nemesvill.eu weboldali űrlap",
+        "Telefonszám: " + phone,
+        "E-mail: " + (email || "Nem adta meg"),
+        "Kért szolgáltatás: " + service,
+        "",
+        "Üzenet:",
+        message
+      ].join("\n");
+
+      // A két rekord egyetlen D1 batch-ben, együtt kerül mentésre.
+      await env.DB.batch([
+        env.DB.prepare(
+          "INSERT INTO customers (id, customer_type, name, email, phone, city, created_at, updated_at) VALUES (?, 'person', ?, ?, ?, ?, datetime('now'), datetime('now'))"
+        ).bind(customerId, name, email || null, phone, location || null),
+        env.DB.prepare(
+          "INSERT INTO leads (id, customer_id, service_type, source, status, subject, description, location_text, created_at, updated_at) VALUES (?, ?, ?, 'website', 'new', ?, ?, ?, datetime('now'), datetime('now'))"
+        ).bind(leadId, customerId, serviceTypes[service], subject, description, location || null)
+      ]);
+
       const safe = value => value.replace(/[&<>"']/g, char => ({
         "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
       }[char]));
       const textBody = [
         "Új ajánlatkérés érkezett a nemesvill.eu weboldalról.",
+        "CRM érdeklődő azonosító: " + leadId,
         "",
         "Név: " + name,
         "Telefonszám: " + phone,
@@ -488,6 +518,7 @@ export default {
       ].join("\n");
       const htmlBody = `<div style="font-family:Arial,sans-serif;color:#172033;max-width:680px">
         <h2>Új ajánlatkérés – nemesvill.eu</h2>
+        <p><strong>CRM érdeklődő azonosító:</strong> ${safe(leadId)}</p>
         <p><strong>Név:</strong> ${safe(name)}</p>
         <p><strong>Telefonszám:</strong> ${safe(phone)}</p>
         <p><strong>E-mail:</strong> ${safe(email || "Nem adta meg")}</p>
@@ -495,23 +526,32 @@ export default {
         <p><strong>Település:</strong> ${safe(location || "Nem adta meg")}</p>
         <p><strong>Üzenet:</strong><br>${safe(message).replace(/\n/g, "<br>")}</p>
       </div>`;
-      const mailResponse = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: { "Authorization": "Bearer " + env.RESEND_API_KEY, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          from: "Nemesvill Weboldal <ertesito@send.nemesvill.eu>",
-          to: ["nemesvillany@gmail.com"],
-          reply_to: email || undefined,
-          subject: "Új ajánlatkérés – " + service,
-          text: textBody,
-          html: htmlBody
-        })
-      });
-      if (!mailResponse.ok) {
-        console.error("Public quote email error:", mailResponse.status, await mailResponse.text());
-        return json({ error: "Az e-mail küldése nem sikerült. Kérjük, próbálja újra később vagy hívjon telefonon." }, 502, cors);
+
+      let emailSent = false;
+      if (env.RESEND_API_KEY) {
+        try {
+          const mailResponse = await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: { "Authorization": "Bearer " + env.RESEND_API_KEY, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              from: "Nemesvill Weboldal <ertesito@send.nemesvill.eu>",
+              to: ["nemesvillany@gmail.com"],
+              reply_to: email || undefined,
+              subject: "Új ajánlatkérés – " + service,
+              text: textBody,
+              html: htmlBody
+            })
+          });
+          emailSent = mailResponse.ok;
+          if (!mailResponse.ok) console.error("Public quote email error:", mailResponse.status, await mailResponse.text());
+        } catch (error) {
+          console.error("Public quote email exception:", error);
+        }
+      } else {
+        console.error("Public quote email skipped: RESEND_API_KEY is not configured.");
       }
-      return json({ success: true }, 200, cors);
+
+      return json({ success: true, lead_id: leadId, email_sent: emailSent }, 200, cors);
     }
 
     const authenticated = await verifySession(request, env);
