@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Facebook-bejegyzések | Nemes László e.v.</title>
+<meta name="description" content="Nemes László e.v. legfrissebb Facebook-bejegyzései: klímaszerelés, villanyszerelés és EV-töltő telepítés Dunaújvárosban és környékén.">
+<meta name="author" content="Nemes László e.v.">
+<link rel="canonical" href="https://nemesvill.eu/facebook.html">
+<link rel="icon" href="assets/logo.png">
+<link rel="stylesheet" href="styles.css">
+<style>
+.facebook-intro{padding:48px 0 20px}
+.facebook-intro h1{font-size:clamp(28px,4vw,42px);margin:8px 0}
+.facebook-intro p{color:var(--muted);max-width:720px}
+.facebook-posts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;padding-bottom:48px}
+.facebook-post{overflow:hidden;border:1px solid var(--line);border-radius:18px;background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.02))}
+.facebook-post img{display:block;width:100%;max-height:360px;object-fit:cover;background:#111a25}
+.facebook-post-body{padding:20px}
+.facebook-post-date{color:var(--muted);font-size:13px}
+.facebook-post-message{white-space:pre-wrap;overflow-wrap:anywhere;margin:12px 0 18px}
+.facebook-status{color:var(--muted);padding:20px 0 40px}
+.facebook-post-actions{display:flex;gap:12px;flex-wrap:wrap}
+@media(max-width:760px){.facebook-posts{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<nav>
+<div class="container nav-inner">
+  <a class="brand" href="index.html" style="color:inherit">
+    <img src="assets/logo.png" alt="Nemes László e.v. logó">
+    <div class="title">Nemes László e.v.</div>
+  </a>
+  <div class="menu" id="nav-menu">
+    <a href="index.html">Főoldal</a>
+    <a href="villanyszereles.html">Villanyszerelés</a>
+    <a href="klima.html">Klímaszerelés</a>
+    <a href="ev-tolto.html">EV töltő telepítés</a>
+    <a href="facebook.html" aria-current="page">Facebook-bejegyzések</a>
+    <a href="index.html#kapcsolat">Kapcsolat</a>
+  </div>
+  <button id="nav-toggle" type="button" aria-label="Menü megnyitása">Menü ▾</button>
+</div>
+</nav>
+
+<header class="facebook-intro">
+<div class="container">
+  <span class="section-eyebrow">Nemes László e.v. a Facebookon</span>
+  <h1>Legfrissebb bejegyzéseim</h1>
+  <p>Itt találja a Facebook-oldalam legújabb híreit, munkáit és ajánlatait. A bejegyzések automatikusan frissülnek.</p>
+</div>
+</header>
+
+<main class="container">
+  <div id="facebook-status" class="facebook-status" role="status" aria-live="polite">Facebook-bejegyzések betöltése…</div>
+  <section id="facebook-posts" class="facebook-posts" aria-label="Facebook-bejegyzések"></section>
+  <div class="facebook-post-actions">
+    <a class="btn btn-outline" href="https://www.facebook.com/776043008919718" target="_blank" rel="noopener noreferrer">Facebook-oldal megnyitása ↗</a>
+    <a class="btn btn-primary" href="tel:+36204276454">📞 +36 20 427 6454</a>
+  </div>
+</main>
+
+<footer><div class="container">
+  <div class="small">© 2026 Nemes László e.v. – Dunaújváros és környéke</div>
+  <a href="adatvedelem.html">Adatvédelmi tájékoztató</a>
+</div></footer>
+
+<script>
+(() => {
+  const status = document.getElementById('facebook-status');
+  const container = document.getElementById('facebook-posts');
+  const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[char]));
+  const formatDate = value => {
+    if (!value) return '';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat('hu-HU', {
+      year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'
+    }).format(date);
+  };
+
+  fetch('https://crm-api.nemesvill.eu/api/public/facebook-posts')
+    .then(async response => {
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'A bejegyzések betöltése nem sikerült.');
+      return data;
+    })
+    .then(data => {
+      const posts = Array.isArray(data.posts) ? data.posts : [];
+      if (!posts.length) {
+        status.textContent = 'Jelenleg nincs megjeleníthető Facebook-bejegyzés.';
+        return;
+      }
+      container.innerHTML = posts.map(post => {
+        const image = post.full_picture
+          ? '<img src="' + escapeHtml(post.full_picture) + '" alt="Facebook-bejegyzés képe" loading="lazy">'
+          : '';
+        const message = post.message
+          ? '<p class="facebook-post-message">' + escapeHtml(post.message) + '</p>'
+          : '';
+        return '<article class="facebook-post">' + image +
+          '<div class="facebook-post-body">' +
+          '<div class="facebook-post-date">' + escapeHtml(formatDate(post.created_time)) + '</div>' +
+          message +
+          '<a class="text-link" href="' + escapeHtml(post.permalink_url) + '" target="_blank" rel="noopener noreferrer">Eredeti bejegyzés megtekintése ↗</a>' +
+          '</div></article>';
+      }).join('');
+      status.hidden = true;
+    })
+    .catch(error => {
+      status.textContent = error.message || 'A Facebook-bejegyzések jelenleg nem érhetők el. Kérjük, látogasson el Facebook-oldalamra.';
+    });
+})();
+</script>
+</body>
+</html>
