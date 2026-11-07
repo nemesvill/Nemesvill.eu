@@ -429,6 +429,68 @@ actions.append(deleteButton);
     return labels[value] || value || 'Új';
   }
 
+  function renderDailyTasks() {
+    const container = $('dailyTasksList');
+    if (!container) return;
+
+    const now = new Date();
+    const pad = value => String(value).padStart(2, '0');
+    const today = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+    const activeLeads = leads
+      .filter(lead => lead.follow_up_at && !['won', 'lost', 'archived'].includes(lead.status))
+      .map(lead => ({ ...lead, followUpText: String(lead.follow_up_at).replace(' ', 'T') }))
+      .filter(lead => lead.followUpText.slice(0, 10) <= today)
+      .sort((a, b) => a.followUpText.localeCompare(b.followUpText));
+
+    container.innerHTML = '';
+    if (!activeLeads.length) {
+      const empty = document.createElement('p');
+      empty.className = 'muted';
+      empty.textContent = 'Nincs mára esedékes vagy lejárt visszahívás.';
+      container.append(empty);
+      return;
+    }
+
+    const overdue = activeLeads.filter(lead => lead.followUpText.slice(0, 10) < today);
+    const dueToday = activeLeads.filter(lead => lead.followUpText.slice(0, 10) === today);
+    const formatDateTime = value => {
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? value : date.toLocaleString('hu-HU', { dateStyle: 'short', timeStyle: 'short' });
+    };
+
+    [[overdue, 'Lejárt visszahívások'], [dueToday, 'Mai visszahívások']].forEach(([items, heading]) => {
+      if (!items.length) return;
+      const group = document.createElement('div');
+      group.className = 'daily-task-group';
+      const title = document.createElement('h3');
+      title.textContent = heading + ' (' + items.length + ')';
+      group.append(title);
+      items.forEach(lead => {
+        const row = document.createElement('article');
+        row.className = 'daily-task';
+        const details = document.createElement('div');
+        const subject = document.createElement('strong');
+        subject.textContent = lead.subject || 'Érdeklődés';
+        const customer = document.createElement('p');
+        customer.textContent = lead.customer_name || 'Ismeretlen érdeklődő';
+        const meta = document.createElement('p');
+        meta.className = 'muted';
+        meta.textContent = [formatDateTime(lead.followUpText), lead.customer_phone, serviceLabel(lead.service_type)].filter(Boolean).join(' · ');
+        details.append(subject, customer, meta);
+        const edit = document.createElement('button');
+        edit.type = 'button';
+        edit.textContent = 'Megnyitás';
+        edit.addEventListener('click', () => {
+          editLead(lead);
+          leadFormPanel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        row.append(details, edit);
+        group.append(row);
+      });
+      container.append(group);
+    });
+  }
+
   function renderLeads() {
     if (!leadList) return;
 
@@ -605,6 +667,7 @@ function editLead(lead) {
       const result = await api('/api/leads');
       leads = Array.isArray(result) ? result : (result.leads || []);
       renderLeads();
+      renderDailyTasks();
       populateJobLeads();
       clearMessage(leadListMessage);
     } catch (error) {
