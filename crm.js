@@ -483,10 +483,10 @@ actions.append(deleteButton);
         const subject = document.createElement('strong');
         subject.textContent = lead.subject || 'Érdeklődés';
         const customer = document.createElement('p');
-        customer.textContent = lead.customer_name || 'Ismeretlen érdeklődő';
+        customer.textContent = lead.customer_name || lead.contact_name || 'Ismeretlen érdeklődő';
         const meta = document.createElement('p');
         meta.className = 'muted';
-        meta.textContent = [formatDateTime(lead.followUpText), lead.customer_phone, serviceLabel(lead.service_type)].filter(Boolean).join(' · ');
+        meta.textContent = [formatDateTime(lead.followUpText), lead.customer_phone || lead.contact_phone, serviceLabel(lead.service_type)].filter(Boolean).join(' · ');
         details.append(subject, customer, meta);
         const actions = document.createElement('div');
         actions.className = 'daily-task-actions';
@@ -540,6 +540,8 @@ actions.append(deleteButton);
       const searchable = [
         lead.subject,
         lead.customer_name,
+        lead.contact_name,
+        lead.contact_phone,
         lead.description,
         lead.location_text,
         lead.service_type,
@@ -566,7 +568,7 @@ actions.append(deleteButton);
       title.textContent = lead.subject || 'Érdeklődés';
 
       const contact = document.createElement('p');
-      contact.textContent = lead.customer_name || 'Ismeretlen ügyfél';
+      contact.textContent = lead.customer_name || lead.contact_name || 'Ismeretlen érdeklődő';
 
       const meta = document.createElement('p');
       meta.textContent = [
@@ -670,15 +672,11 @@ function editLead(lead) {
     leadFormTitle.textContent = 'Érdeklődő szerkesztése';
   }
 
-  if (leadCustomerMode) {
-    leadCustomerMode.value = 'existing';
-  }
-
+  if (leadCustomerMode) leadCustomerMode.value = lead.customer_id ? 'existing' : 'new';
   toggleLeadCustomerMode();
-
-  if (leadCustomerSelect) {
-    leadCustomerSelect.value = lead.customer_id || '';
-  }
+  if (leadCustomerSelect) leadCustomerSelect.value = lead.customer_id || '';
+  if (leadCustomerName) leadCustomerName.value = lead.contact_name || '';
+  if (leadCustomerPhone) leadCustomerPhone.value = lead.contact_phone || '';
 
   if (leadService) leadService.value = lead.service_type || 'egyeb';
   if (leadSource) leadSource.value = lead.source || 'manual';
@@ -723,49 +721,21 @@ function editLead(lead) {
     leadForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       clearMessage(leadFormMessage);
-
-      const isNewCustomer = !leadCustomerMode || leadCustomerMode.value === 'new';
+      const isNewContact = !leadCustomerMode || leadCustomerMode.value === 'new';
       const currentLeadId = leadId?.value;
-      let customerId = '';
-
+      const contactName = leadCustomerName?.value.trim() || '';
+      const contactPhone = leadCustomerPhone?.value.trim() || '';
+      let customerId = null;
       try {
-        if (isNewCustomer) {
-          const name = leadCustomerName?.value.trim();
-          const phone = leadCustomerPhone?.value.trim();
-
-          if (!name) {
-            throw new Error('Add meg az érdeklődő nevét.');
-          }
-
-          showMessage(leadFormMessage, 'Kapcsolattartó mentése...');
-
-          const customerResult = await api('/api/customers', {
-            method: 'POST',
-            body: JSON.stringify({
-              customer_type: 'person',
-              name,
-              phone
-            })
-          });
-
-          const customer = customerResult.customer || customerResult;
-          customerId = customer.id;
-
-          if (!customerId) {
-            throw new Error('Az ügyfél mentése nem adott vissza azonosítót.');
-          }
-
-          await loadCustomers();
-        } else {
+        if (isNewContact && !contactName) throw new Error('Add meg az érdeklődő nevét.');
+        if (!isNewContact) {
           customerId = leadCustomerSelect?.value || '';
-
-          if (!customerId) {
-            throw new Error('Válassz ki egy ügyfelet.');
-          }
+          if (!customerId) throw new Error('Válassz ki egy ügyfelet.');
         }
-
         const data = {
           customer_id: customerId,
+          contact_name: isNewContact ? contactName : '',
+          contact_phone: isNewContact ? contactPhone : '',
           service_type: leadService?.value || 'egyeb',
           source: leadSource?.value || 'manual',
           subject: leadSubject?.value.trim() || 'Új érdeklődés',
@@ -775,35 +745,15 @@ function editLead(lead) {
           status: leadStatus?.value || 'new',
           follow_up_at: leadFollowUp?.value || ''
         };
-
-      showMessage(leadFormMessage, 'Érdeklődő mentése...');
-
-if (currentLeadId) {
-  await api(`/api/leads/${encodeURIComponent(currentLeadId)}`, {
-    method: 'PUT',
-    body: JSON.stringify(data)
-  });
-} else {
-  await api('/api/leads', {
-    method: 'POST',
-    body: JSON.stringify(data)
-  });
-}
-
-      const wasEditing = Boolean(currentLeadId);
-
-resetLeadForm();
-
-if (leadFormPanel) leadFormPanel.hidden = true;
-
-showMessage(
-  leadListMessage,
-  wasEditing
-    ? 'Érdeklődő sikeresen módosítva.'
-    : 'Érdeklődő sikeresen rögzítve.',
-  'success'
-);
-
+        showMessage(leadFormMessage, 'Érdeklődő mentése...');
+        await api(currentLeadId ? `/api/leads/${encodeURIComponent(currentLeadId)}` : '/api/leads', {
+          method: currentLeadId ? 'PUT' : 'POST',
+          body: JSON.stringify(data)
+        });
+        const wasEditing = Boolean(currentLeadId);
+        resetLeadForm();
+        if (leadFormPanel) leadFormPanel.hidden = true;
+        showMessage(leadListMessage, wasEditing ? 'Érdeklődő sikeresen módosítva.' : 'Érdeklődő sikeresen rögzítve.', 'success');
         await loadLeads();
         await loadCustomers();
       } catch (error) {
@@ -811,7 +761,6 @@ showMessage(
       }
     });
   }
-
 
 
   function escapePrintHtml(value) {
@@ -2117,7 +2066,23 @@ if (newJobButton) {
           await loadMaintenance();
         } catch (error) { showMessage(maintenanceMessage, error.message, 'error'); }
       });
-      actions.append(edit, done);
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'secondary';
+      remove.textContent = 'Törlés';
+      remove.addEventListener('click', async () => {
+        if (!confirm('Biztosan törlöd ezt a klímaberendezést és a hozzá tartozó karbantartási nyilvántartást?')) return;
+        remove.disabled = true;
+        try {
+          await api('/api/maintenance/' + encodeURIComponent(item.id), { method: 'DELETE' });
+          await loadMaintenance();
+          showMessage(maintenanceMessage, 'A klímaberendezés törölve.', 'success');
+        } catch (error) {
+          remove.disabled = false;
+          showMessage(maintenanceMessage, error.message, 'error');
+        }
+      });
+      actions.append(edit, done, remove);
       row.append(info, actions);
       maintenanceList.append(row);
     });
