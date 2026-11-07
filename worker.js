@@ -347,6 +347,48 @@ export default {
         : new Response(null, { status: 403 });
     }
 
+    // Nyilvános Facebook-bejegyzések – a Page Access Token kizárólag szerveroldali Secret.
+    if (url.pathname === "/api/public/facebook-posts" && request.method === "GET") {
+      if (!env.FACEBOOK_PAGE_ACCESS_TOKEN) {
+        return json({ error: "A Facebook-kapcsolat még nincs beállítva." }, 503, cors);
+      }
+
+      try {
+        const graphUrl = new URL("https://graph.facebook.com/v27.0/776043008919718/posts");
+        graphUrl.searchParams.set("fields", "id,message,created_time,permalink_url,full_picture");
+        graphUrl.searchParams.set("limit", "8");
+        graphUrl.searchParams.set("access_token", env.FACEBOOK_PAGE_ACCESS_TOKEN);
+
+        const graphResponse = await fetch(graphUrl.toString());
+        const graphData = await graphResponse.json().catch(() => ({}));
+
+        if (!graphResponse.ok || graphData.error) {
+          console.error("Facebook Graph API error:", graphData.error?.message || graphResponse.status);
+          return json({ error: "A Facebook-bejegyzések most nem tölthetők be." }, 502, cors);
+        }
+
+        const posts = (Array.isArray(graphData.data) ? graphData.data : []).map(post => ({
+          id: String(post.id || ""),
+          message: String(post.message || ""),
+          created_time: post.created_time || null,
+          permalink_url: post.permalink_url || "https://www.facebook.com/",
+          full_picture: post.full_picture || null
+        }));
+
+        return new Response(JSON.stringify({ posts }), {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            "Cache-Control": "public, max-age=300, s-maxage=300",
+            ...cors
+          }
+        });
+      } catch (error) {
+        console.error("Facebook posts request failed:", error?.message || String(error));
+        return json({ error: "A Facebook-bejegyzések most nem tölthetők be." }, 502, cors);
+      }
+    }
+
     if (
       !env.DB ||
       !env.ADMIN_EMAIL ||
