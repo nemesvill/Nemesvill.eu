@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="/assets/pwa-icon.svg">
   <title>Nemesvill CRM – Ügyviteli rendszer</title>
   <link rel="stylesheet" href="crm.css">
- <script src="crm.js?v=20261107-24" defer></script>
+ <script src="crm.js?v=20261107-25" defer></script>
 </head>
 <body>
   <main class="shell">
@@ -405,6 +405,12 @@
         <div class="customer-toolbar">
           <button type="button" id="maintenanceTestEmailButton" class="secondary">Tesztjelentés küldése</button>
           <input type="search" id="maintenanceSearch" placeholder="Keresés ügyfél, gyártó, modell vagy gyári szám alapján…" aria-label="Karbantartások keresése">
+          <select id="maintenanceFilter" aria-label="Karbantartások szűrése">
+            <option value="all">Összes berendezés</option>
+            <option value="overdue">Lejárt karbantartások</option>
+            <option value="soon">30 napon belül esedékes</option>
+            <option value="undated">Dátum nélküliek</option>
+          </select>
           <button type="button" id="newMaintenanceButton">+ Új berendezés</button>
         </div>
         <div id="maintenanceFormPanel" hidden>
@@ -427,6 +433,7 @@
             <p id="maintenanceFormMessage" class="message maintenance-wide" role="status"></p>
           </form>
         </div>
+        <p id="maintenanceSummary" class="maintenance-summary muted" aria-live="polite"></p>
         <div id="maintenanceMessage" class="message" role="status"></div>
         <div id="maintenanceList"></div>
       </section>
