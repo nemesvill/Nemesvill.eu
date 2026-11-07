@@ -2246,7 +2246,7 @@ if (newJobButton) {
   async function loadFinancial(){
     if(!financialSummary)return;
     const period=financialPeriod?.value||'month';
-    const month=financialMonth?.value||new Date().toISOString().slice(0,7);
+    const month=financialMonth?.value||localDateString().slice(0,7);
     const year=String(financialYear?.value||new Date().getFullYear());
     if(financialMonth)financialMonth.hidden=period!=='month';
     if(financialYear)financialYear.hidden=period!=='year';
