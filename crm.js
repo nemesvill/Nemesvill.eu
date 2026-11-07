@@ -253,6 +253,7 @@ actions.append(deleteButton);
       populateLeadCustomers();
       populateJobCustomers();
       populateMaintenanceCustomers(maintenanceCustomer?.value || '');
+      renderMaintenance();
       clearMessage(customerListMessage);
     } catch (error) {
       showMessage(customerListMessage, error.message, 'error');
