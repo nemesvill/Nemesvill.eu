@@ -1990,10 +1990,20 @@ if (newJobButton) {
   const maintenanceList = $('maintenanceList');
   const maintenanceMessage = $('maintenanceMessage');
   const maintenanceSearch = $('maintenanceSearch');
+  const maintenanceFilter = $('maintenanceFilter');
+  const maintenanceSummary = $('maintenanceSummary');
   const maintenanceCustomer = $('maintenanceCustomer');
   const maintenanceLastService = $('maintenanceLastService');
   const maintenanceNextService = $('maintenanceNextService');
   let maintenanceItems = [];
+  let maintenanceFilterValue = 'all';
+
+  function maintenanceDateState(item, today = new Date().toISOString().slice(0, 10)) {
+    if (!item.next_service_on) return 'undated';
+    if (item.next_service_on < today) return 'overdue';
+    const limit = addDaysToDate(today, 30);
+    return item.next_service_on <= limit ? 'soon' : 'later';
+  }
 
   function addMonthsToDate(value, months = 6) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return '';
@@ -2020,10 +2030,23 @@ if (newJobButton) {
   function renderMaintenance() {
     if (!maintenanceList) return;
     const query = (maintenanceSearch?.value || '').trim().toLocaleLowerCase('hu-HU');
-    const filtered = maintenanceItems.filter(item =>
-      [item.customer_name, item.manufacturer, item.model, item.serial_number, item.notes]
-        .filter(Boolean).join(' ').toLocaleLowerCase('hu-HU').includes(query)
-    );
+    const today = new Date().toISOString().slice(0, 10);
+    const overdueCount = maintenanceItems.filter(item => maintenanceDateState(item, today) === 'overdue').length;
+    const soonCount = maintenanceItems.filter(item => maintenanceDateState(item, today) === 'soon').length;
+    const totalCount = maintenanceItems.length;
+    if (maintenanceSummary) {
+      maintenanceSummary.textContent = 'Összes berendezés: ' + totalCount + ' · Lejárt: ' + overdueCount + ' · 30 napon belül esedékes: ' + soonCount;
+    }
+    const filtered = maintenanceItems.filter(item => {
+      const searchable = [item.customer_name, item.manufacturer, item.model, item.serial_number, item.notes]
+        .filter(Boolean).join(' ').toLocaleLowerCase('hu-HU').includes(query);
+      if (!searchable) return false;
+      const state = maintenanceDateState(item, today);
+      if (maintenanceFilterValue === 'overdue') return state === 'overdue';
+      if (maintenanceFilterValue === 'soon') return state === 'soon';
+      if (maintenanceFilterValue === 'undated') return state === 'undated';
+      return true;
+    });
     maintenanceList.innerHTML = '';
     if (!filtered.length) {
       maintenanceList.textContent = 'Még nincs rögzített klímaberendezés.';
@@ -2050,6 +2073,21 @@ if (newJobButton) {
       note.className = 'muted';
       note.textContent = [item.last_service_on ? 'Utolsó karbantartás: ' + item.last_service_on : '', item.notes || ''].filter(Boolean).join(' · ');
       info.append(title, detail, due, note);
+      const contact = document.createElement('p');
+      contact.className = 'maintenance-contact';
+      if (item.customer_phone) {
+        const phone = document.createElement('a');
+        phone.href = 'tel:' + String(item.customer_phone).replace(/[^+\\d]/g, '');
+        phone.textContent = 'Telefon: ' + item.customer_phone;
+        contact.append(phone);
+      }
+      if (item.customer_email) {
+        const email = document.createElement('a');
+        email.href = 'mailto:' + item.customer_email;
+        email.textContent = 'E-mail: ' + item.customer_email;
+        contact.append(email);
+      }
+      if (contact.childNodes.length) info.append(contact);
       const actions = document.createElement('div');
       actions.className = 'maintenance-actions';
       const edit = document.createElement('button');
@@ -2135,6 +2173,10 @@ if (newJobButton) {
     maintenanceForm.reset();
   });
   maintenanceSearch?.addEventListener('input', renderMaintenance);
+  maintenanceFilter?.addEventListener('change', () => {
+    maintenanceFilterValue = maintenanceFilter.value || 'all';
+    renderMaintenance();
+  });
   maintenanceLastService?.addEventListener('change', () => {
     if (maintenanceLastService.value && maintenanceNextService && !maintenanceNextService.dataset.manual) {
       maintenanceNextService.value = addMonthsToDate(maintenanceLastService.value, 6);
